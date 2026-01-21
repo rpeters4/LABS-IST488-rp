@@ -1,19 +1,25 @@
-# 📄 Document question answering template
+# 🧪 IST 488 Labs: Document QA & Summarization
 
-A simple Streamlit app that answers questions about an uploaded document via OpenAI's GPT-3.5.
+A multi-page Streamlit application for IST 488 labs.
 
-[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://document-question-answering-template.streamlit.app/)
+## Features
+- **Lab 1: Document QA**: Upload a document and ask questions about it using OpenAI's GPT models.
+- **Lab 2: Document Summarization**: Upload a text or PDF file and generate summaries with customizable length and language.
 
-### How to run it on your own machine
+## Setup
 
-1. Install the requirements
-
+1. **Install Requirements**
+   ```bash
+   pip install -r requirements.txt
    ```
-   $ pip install -r requirements.txt
+
+2. **Configure API Key**
+   Create a `.streamlit/secrets.toml` file:
+   ```toml
+   OPENAI_API_KEY = "sk-..."
    ```
 
-2. Run the app
-
-   ```
-   $ streamlit run streamlit_app.py
+3. **Run the App**
+   ```bash
+   streamlit run streamlit_app.py
    ```
