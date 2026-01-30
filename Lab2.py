@@ -2,7 +2,7 @@ import streamlit as st
 from openai import OpenAI
 import os
 
-# Try to import PyPDF2 for PDF support
+# import pdf 
 try:
     from PyPDF2 import PdfReader
     PDF_SUPPORT = True
@@ -10,7 +10,7 @@ except ImportError:
     PDF_SUPPORT = False
 
 # Show title and description.
-st.title("Lab 2: Document Summarizer")
+st.title("Ryan's Lab 2: Document Summarizer")
 st.write(
     "Upload a document below and get a summary using GPT. "
     "Select your preferred language, summary format, and model in the sidebar."
