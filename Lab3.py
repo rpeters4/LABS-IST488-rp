@@ -55,13 +55,6 @@ if prompt := st.chat_input("What up dawg?"):
     current_tokens = get_num_tokens(system_prompt["content"])
     messages_to_send = [system_prompt]
     
-    # Iterate backwards through history to add as many messages as possible
-    # reversed_history = list(reversed(st.session_state.messages))
-    # But wait, the requirement says "Keep only the last 2 messages from the user (and the responses...)"
-    # AND "If you have time, create a token-based buffer". 
-    # The token buffer implies we fit as much as allowed. 
-    # We will prioritize the LAST 2 exchanges (4 messages) if possible, but respect max_tokens.
-    
     # Let's simple traverse backwards and add until we hit the limit.
     temp_messages = []
     for message in reversed(st.session_state.messages):
