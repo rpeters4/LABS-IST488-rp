@@ -99,7 +99,9 @@ def create_vector_db():
     for i in range(0, len(documents), batch_size):
         batch_docs = documents[i : i + batch_size]
         try:
-            response = client.embeddings.create(input=batch_docs, model="text-embedding-3-small")
+            response = client.embeddings.create(
+                input=batch_docs, 
+                model="text-embedding-3-small")
             batch_embeddings = [data.embedding for data in response.data]
             embeddings.extend(batch_embeddings)
             progress_bar.progress((i + len(batch_docs)) / len(documents), text=f"Generated {i + len(batch_docs)}/{len(documents)} embeddings")
