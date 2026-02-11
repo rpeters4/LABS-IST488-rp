@@ -95,30 +95,7 @@ if "Lab4_VectorDB" not in st.session_state:
     with st.spinner("Creating Vector Database from PDFs..."):
         st.session_state.Lab4_VectorDB = create_vector_db()
 
-# --- Part A: Test the vectorDB ---
-# Use a search string as a test and output an ordered list of 3 returned documents
-st.subheader("Part A: Test Vector DB")
-test_query = "Generative AI"
-st.write(f"Testing with query: **{test_query}**")
-
-if st.session_state.Lab4_VectorDB:
-    # Generate embedding for the query
-    query_response = client.embeddings.create(input=test_query, model="text-embedding-3-small")
-    query_embedding = query_response.data[0].embedding
-    
-    # Query the collection
-    results = st.session_state.Lab4_VectorDB.query(
-        query_embeddings=[query_embedding],
-        n_results=3
-    )
-    
-    st.write("Top 3 Documents:")
-    if results['ids']:
-        for i, doc_id in enumerate(results['ids'][0]):
-            st.write(f"{i+1}. {doc_id}")
-
-
-# --- Chatbot Interface (Part B placeholder) ---
+# --- Chatbot Interface (Part B) ---
 # Initialize Session State
 if "lab4_messages" not in st.session_state:
     st.session_state.lab4_messages = []
@@ -137,11 +114,50 @@ if prompt := st.chat_input("Ask a question about the course materials"):
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # TODO: Implement RAG for Part B here
-    # Placeholder response
-    response = "I am a placeholder. RAG implementation coming in Part B."
+    # Retrieve relevant documents
+    context_text = ""
+    if st.session_state.Lab4_VectorDB:
+        with st.spinner("Retrieving relevant information..."):
+            query_response = client.embeddings.create(input=prompt, model="text-embedding-3-small")
+            query_embedding = query_response.data[0].embedding
+            
+            results = st.session_state.Lab4_VectorDB.query(
+                query_embeddings=[query_embedding],
+                n_results=3
+            )
+            
+            if results['documents']:
+                for i, doc in enumerate(results['documents'][0]):
+                    context_text += f"\n\n--- Document Snippet {i+1} ---\n{doc}"
+
+    # Prepare messages for LLM
+    system_prompt = (
+        "You are a helpful teaching assistant for a university course. "
+        "You have access to the following course materials (syllabi, etc.) to answer student questions. "
+        "Use the provided context to answer the user's question. "
+        "If the answer is found in the context, please cite the document or mention that you found it in the course materials. "
+        "If the answer is NOT in the context, utilize your general knowledge but clearly state that this information is not from the specific course documents provided."
+        f"\n\nContext Information:{context_text}"
+    )
+
+    messages = [
+        {"role": "system", "content": system_prompt},
+    ]
     
+    # Add conversation history (optional, but good for follow-ups)
+    # We'll just add the latest user prompt for simple RAG, or full history if we want context.
+    # Let's add the last few messages for context, but be careful with token limits if context is huge.
+    # For this lab, let's just use the current prompt + retrieved context to be safe and simple as per instructions "add this additional information (text) to the prompt".
+    messages.append({"role": "user", "content": prompt})
+
+
+    # Generate Response
     with st.chat_message("assistant"):
-        st.markdown(response)
+        stream = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+            stream=True,
+        )
+        response = st.write_stream(stream)
     
     st.session_state.lab4_messages.append({"role": "assistant", "content": response})
