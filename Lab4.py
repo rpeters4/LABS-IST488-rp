@@ -16,6 +16,17 @@ except (KeyError, FileNotFoundError):
 
 client = OpenAI(api_key=openai_api_key)
 
+# Helper function for chunking text
+def chunk_text(text, chunk_size=1000, overlap=200):
+    """Splits text into chunks with overlap."""
+    chunks = []
+    start = 0
+    while start < len(text):
+        end = start + chunk_size
+        chunks.append(text[start:end])
+        start += (chunk_size - overlap)
+    return chunks
+
 def create_vector_db():
     """Created and returns a ChromaDB collection with the PDF data."""
     # Define the directory containing the PDFs
@@ -37,15 +48,22 @@ def create_vector_db():
     chroma_client = chromadb.Client()
     
     # Create or get collection
+    # We use a new name to force a fresh start if the code changes
+    collection_name = "Lab4Collection_v2" 
+    
     try:
-        collection = chroma_client.create_collection(name="Lab4Collection")
-    except Exception:
-         # In case it already exists in this ephemeral session (unlikely with this logic but good practice)
-        collection = chroma_client.get_collection(name="Lab4Collection")
+        # Try to delete if it exists to ensure freshness (optional, but good for dev)
+        chroma_client.delete_collection(name=collection_name)
+    except:
+        pass
+
+    collection = chroma_client.create_collection(name=collection_name)
 
     documents = []
     ids = []
     metadatas = []
+    
+    id_counter = 0
 
     # Process each PDF
     for filename in pdf_files:
@@ -53,33 +71,40 @@ def create_vector_db():
         try:
             with open(file_path, 'rb') as f:
                 reader = PyPDF2.PdfReader(f)
-                text = ""
+                full_text = ""
                 for page in reader.pages:
-                    text += page.extract_text()
+                    full_text += page.extract_text()
                 
-                documents.append(text)
-                ids.append(filename)
-                metadatas.append({"filename": filename})
+                # CHUNK the text
+                chunks = chunk_text(full_text, chunk_size=1000, overlap=200)
+                
+                for i, chunk in enumerate(chunks):
+                    documents.append(chunk)
+                    ids.append(f"{filename}_chunk_{i}") # Unique ID per chunk
+                    metadatas.append({"filename": filename, "chunk_id": i})
+                    
         except Exception as e:
             st.error(f"Error reading {filename}: {e}")
 
-    # Add documents to collection
-    # ChromaDB handles embeddings automatically if no embedding function is provided? 
-    # The prompt asked to "For the embeddings vector use an OpenAI embeddings model". 
-    # ChromaDB's default is all-MiniLM-L6-v2. We need to specify OpenAI.
-    # However, for simplicity in this specific lab context without creating a custom EmbeddingFunction class overhead 
-    # unless required by the library version, we might need to do manual embedding or use Chroma's utility.
-    # Let's use OpenAI embeddings manually to ensure we meet the "For the embeddings vector use an OpenAI embeddings model" requirement explicitly.
-    
-    # Actually, let's use the embedding function feature if possible, or just pre-calculate.
-    # Given the instructions "For the embeddings vector use an OpenAI embeddings model", let's do it manually 
-    # to be safe and clear, or use the openai client we already have.
-    
     # Generate embeddings
+    # Using batches to avoid hitting API limits if many chunks
     embeddings = []
-    for doc in documents:
-        response = client.embeddings.create(input=doc, model="text-embedding-3-small")
-        embeddings.append(response.data[0].embedding)
+    batch_size = 100 # OpenAI limit is often higher, but 100 is safe
+    
+    progress_bar = st.progress(0, text="Generating embeddings...")
+    
+    for i in range(0, len(documents), batch_size):
+        batch_docs = documents[i : i + batch_size]
+        try:
+            response = client.embeddings.create(input=batch_docs, model="text-embedding-3-small")
+            batch_embeddings = [data.embedding for data in response.data]
+            embeddings.extend(batch_embeddings)
+            progress_bar.progress((i + len(batch_docs)) / len(documents), text=f"Generated {i + len(batch_docs)}/{len(documents)} embeddings")
+        except Exception as e:
+            st.error(f"Error generating embeddings for batch {i}: {e}")
+            return None # Stop if embedding fails
+            
+    progress_bar.empty()
 
     collection.add(
         documents=documents,
@@ -91,9 +116,10 @@ def create_vector_db():
     return collection
 
 # Initialize Vector DB
-if "Lab4_VectorDB" not in st.session_state:
-    with st.spinner("Creating Vector Database from PDFs..."):
-        st.session_state.Lab4_VectorDB = create_vector_db()
+# Changed key to v2 to force rebuild
+if "Lab4_VectorDB_v2" not in st.session_state:
+    with st.spinner("Creating Vector Database from PDFs (Chunks)..."):
+        st.session_state.Lab4_VectorDB_v2 = create_vector_db()
 
 # --- Chatbot Interface (Part B) ---
 # Initialize Session State
@@ -116,19 +142,24 @@ if prompt := st.chat_input("Ask a question about the course materials"):
 
     # Retrieve relevant documents
     context_text = ""
-    if st.session_state.Lab4_VectorDB:
+    retrieved_docs = []
+    
+    if "Lab4_VectorDB_v2" in st.session_state and st.session_state.Lab4_VectorDB_v2:
         with st.spinner("Retrieving relevant information..."):
             query_response = client.embeddings.create(input=prompt, model="text-embedding-3-small")
             query_embedding = query_response.data[0].embedding
             
-            results = st.session_state.Lab4_VectorDB.query(
+            # Increased n_results since we are using chunks now
+            results = st.session_state.Lab4_VectorDB_v2.query(
                 query_embeddings=[query_embedding],
-                n_results=3
+                n_results=5  # Retrieve top 5 chunks
             )
             
             if results['documents']:
                 for i, doc in enumerate(results['documents'][0]):
-                    context_text += f"\n\n--- Document Snippet {i+1} ---\n{doc}"
+                    filename = results['metadatas'][0][i]['filename']
+                    context_text += f"\n\n--- Document Snippet {i+1} (Source: {filename}) ---\n{doc}"
+                    retrieved_docs.append(filename)
 
     # Prepare messages for LLM
     system_prompt = (
@@ -144,10 +175,6 @@ if prompt := st.chat_input("Ask a question about the course materials"):
         {"role": "system", "content": system_prompt},
     ]
     
-    # Add conversation history (optional, but good for follow-ups)
-    # We'll just add the latest user prompt for simple RAG, or full history if we want context.
-    # Let's add the last few messages for context, but be careful with token limits if context is huge.
-    # For this lab, let's just use the current prompt + retrieved context to be safe and simple as per instructions "add this additional information (text) to the prompt".
     messages.append({"role": "user", "content": prompt})
 
 
@@ -161,3 +188,27 @@ if prompt := st.chat_input("Ask a question about the course materials"):
         response = st.write_stream(stream)
     
     st.session_state.lab4_messages.append({"role": "assistant", "content": response})
+    
+    # DEBUG SIDEBAR (Shows info for the LAST query)
+    st.session_state.last_context_length = len(context_text)
+    st.session_state.last_retrieved_docs = retrieved_docs
+
+# Debug Sidebar Logic
+with st.sidebar:
+    st.header("Debug Tool 🛠️")
+    if "last_context_length" in st.session_state:
+        st.write(f"**Context Length:** {st.session_state.last_context_length} chars")
+    
+    if "last_retrieved_docs" in st.session_state:
+        st.write("**Retrieved Documents:**")
+        # De-duplicate filenames for display while keeping order
+        seen = set()
+        seen_add = seen.add
+        unique_docs = [x for x in st.session_state.last_retrieved_docs if not (x in seen or seen_add(x))]
+        
+        for doc in unique_docs:
+            st.write(f"- {doc}")
+            
+    if st.button("Clear Conversation"):
+        st.session_state.lab4_messages = []
+        st.rerun()
