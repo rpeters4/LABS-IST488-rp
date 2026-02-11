@@ -195,7 +195,7 @@ if prompt := st.chat_input("Ask a question about the course materials"):
 
 # Debug Sidebar Logic
 with st.sidebar:
-    st.header("Debug Tool 🛠️")
+    st.header("Debug Tool")
     if "last_context_length" in st.session_state:
         st.write(f"**Context Length:** {st.session_state.last_context_length} chars")
     
