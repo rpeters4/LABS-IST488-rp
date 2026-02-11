@@ -48,16 +48,19 @@ def create_vector_db():
     chroma_client = chromadb.Client()
     
     # Create or get collection
-    # We use a new name to force a fresh start if the code changes
-    collection_name = "Lab4Collection_v2" 
+    collection_name = "Lab4Collection" 
     
     try:
         # Try to delete if it exists to ensure freshness (optional, but good for dev)
-        chroma_client.delete_collection(name=collection_name)
+        # Note: In production you wouldn't delete it every time, but for this lab 
+        # where we might be actively changing the logic, it helps.
+        # However, the requirement says "Only create the ChromaDB once".
+        # So we should rely on the st.session_state check.
+        # But since we are inside create_vector_db which is only called if not in session state...
+        # Let's just use get_or_create to be safe.
+        collection = chroma_client.get_or_create_collection(name=collection_name)
     except:
-        pass
-
-    collection = chroma_client.create_collection(name=collection_name)
+        collection = chroma_client.create_collection(name=collection_name)
 
     documents = []
     ids = []
@@ -116,10 +119,9 @@ def create_vector_db():
     return collection
 
 # Initialize Vector DB
-# Changed key to v2 to force rebuild
-if "Lab4_VectorDB_v2" not in st.session_state:
-    with st.spinner("Creating Vector Database from PDFs (Chunks)..."):
-        st.session_state.Lab4_VectorDB_v2 = create_vector_db()
+if "Lab4_VectorDB" not in st.session_state:
+    with st.spinner("Creating Vector Database from PDFs..."):
+        st.session_state.Lab4_VectorDB = create_vector_db()
 
 # --- Chatbot Interface (Part B) ---
 # Initialize Session State
@@ -144,13 +146,13 @@ if prompt := st.chat_input("Ask a question about the course materials"):
     context_text = ""
     retrieved_docs = []
     
-    if "Lab4_VectorDB_v2" in st.session_state and st.session_state.Lab4_VectorDB_v2:
+    if "Lab4_VectorDB" in st.session_state and st.session_state.Lab4_VectorDB:
         with st.spinner("Retrieving relevant information..."):
             query_response = client.embeddings.create(input=prompt, model="text-embedding-3-small")
             query_embedding = query_response.data[0].embedding
             
             # Increased n_results since we are using chunks now
-            results = st.session_state.Lab4_VectorDB_v2.query(
+            results = st.session_state.Lab4_VectorDB.query(
                 query_embeddings=[query_embedding],
                 n_results=5  # Retrieve top 5 chunks
             )
