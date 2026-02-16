@@ -17,6 +17,9 @@ except KeyError:
 
 client = openai.OpenAI(api_key=openai_api_key)
 
+if "weather_api_status" not in st.session_state:
+    st.session_state.weather_api_status = None
+
 def get_current_weather(location):
     """
     Get the current weather for a given location using OpenWeatherMap API.
@@ -35,11 +38,25 @@ def get_current_weather(location):
             "humidity": data["main"]["humidity"],
             "wind_speed": data["wind"]["speed"]
         }
+        st.session_state.weather_api_status = "Success"
         return json.dumps(weather_info)
     except requests.exceptions.RequestException as e:
+        st.session_state.weather_api_status = f"Error: {e}"
         return json.dumps({"error": str(e)})
     except KeyError:
+         st.session_state.weather_api_status = "Error: Invalid response format"
          return json.dumps({"error": "Location not found or invalid response format."})
+
+# Debug Sidebar
+with st.sidebar:
+    st.header("Debug Panel")
+    if st.session_state.weather_api_status == "Success":
+        st.success("OpenWeatherMap API: Connected Successfully")
+    else:
+        st.warning("OpenWeatherMap API: Not used or Failed")
+        st.info("Using OpenAI API Only")
+        if st.session_state.weather_api_status:
+             st.caption(f"Last Status: {st.session_state.weather_api_status}")
 
 # Define the tool for OpenAI
 tools = [
