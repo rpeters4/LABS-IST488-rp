@@ -50,17 +50,6 @@ def get_current_weather(location):
          st.session_state.weather_api_status = "Error: Invalid response format"
          return json.dumps({"error": "Location not found or invalid response format."})
 
-# Debug Sidebar
-with st.sidebar:
-    st.header("Debug Panel")
-    if st.session_state.weather_api_status == "Success":
-        st.success("OpenWeatherMap API: Connected Successfully")
-    else:
-        st.warning("OpenWeatherMap API: Not used or Failed")
-        st.info("Using OpenAI API Only")
-        if st.session_state.weather_api_status:
-             st.caption(f"Last Status: {st.session_state.weather_api_status}")
-
 # Define the tool for OpenAI
 tools = [
     {
@@ -156,3 +145,20 @@ if prompt := st.chat_input("Where are you properly?"):
             
         except Exception as e:
             st.error(f"An error occurred: {e}")
+
+# Debug Sidebar (Moved to end to capture latest state)
+with st.sidebar:
+    st.header("Debug Panel")
+    
+    # helper to manually test
+    if st.button("Test API Connection Now"):
+        with st.spinner("Testing API..."):
+            get_current_weather("Syracuse, NY")
+    
+    if st.session_state.weather_api_status == "Success":
+        st.success("OpenWeatherMap API: Connected Successfully")
+    else:
+        st.warning("OpenWeatherMap API: Not used or Failed")
+        st.info("Using OpenAI API Only")
+        if st.session_state.weather_api_status:
+             st.caption(f"Last Status: {st.session_state.weather_api_status}")
