@@ -20,6 +20,7 @@ client = openai.OpenAI(api_key=openai_api_key)
 if "weather_api_status" not in st.session_state:
     st.session_state.weather_api_status = None
 
+def get_current_weather(location):
     """
     Get the current weather for a given location using OpenWeatherMap API.
     """
