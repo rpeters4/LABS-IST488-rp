@@ -24,7 +24,7 @@ def get_current_weather(location):
     """
     Get the current weather for a given location using OpenWeatherMap API.
     """
-    url = f"http://api.openweathermap.org/data/2.5/weather?q={location}&appid={openweathermap_api_key}&units=imperial"
+    url = f"https://api.openweathermap.org/data/2.5/weather?q={location}&appid={openweathermap_api_key}&units=imperial"
     
     try:
         response = requests.get(url)
@@ -41,7 +41,10 @@ def get_current_weather(location):
         st.session_state.weather_api_status = "Success"
         return json.dumps(weather_info)
     except requests.exceptions.RequestException as e:
-        st.session_state.weather_api_status = f"Error: {e}"
+        error_msg = f"Error: {e}"
+        if hasattr(e, 'response') and e.response is not None:
+             error_msg += f" (Status: {e.response.status_code}, Body: {e.response.text})"
+        st.session_state.weather_api_status = error_msg
         return json.dumps({"error": str(e)})
     except KeyError:
          st.session_state.weather_api_status = "Error: Invalid response format"
