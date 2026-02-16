@@ -20,11 +20,12 @@ client = openai.OpenAI(api_key=openai_api_key)
 if "weather_api_status" not in st.session_state:
     st.session_state.weather_api_status = None
 
-def get_current_weather(location):
     """
     Get the current weather for a given location using OpenWeatherMap API.
     """
-    url = f"https://api.openweathermap.org/data/2.5/weather?q={location}&appid={openweathermap_api_key}&units=imperial"
+    # Clean up location string (remove spaces after commas)
+    location_query = location.replace(", ", ",")
+    url = f"https://api.openweathermap.org/data/2.5/weather?q={location_query}&appid={openweathermap_api_key}&units=imperial"
     
     try:
         response = requests.get(url)
