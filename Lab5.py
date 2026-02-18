@@ -24,25 +24,65 @@ if "last_weather_data" not in st.session_state:
     st.session_state.last_weather_data = None
 
 # ---------- Weather Function (Part A) ----------
+def _geocode_city(location):
+    """
+    Use the OpenWeatherMap Geocoding API to resolve a city name into
+    (lat, lon, display_name).  Handles bare names like 'new york',
+    comma-separated names like 'Syracuse, NY', and international cities
+    like 'Lima, Peru'.
+    """
+    # Normalise whitespace and strip quotes the user might paste in
+    cleaned = location.strip().strip('"').strip("'")
+
+    # The geo API works well with the raw string – no need to force commas
+    geo_url = (
+        f"https://api.openweathermap.org/geo/1.0/direct"
+        f"?q={cleaned}&limit=1&appid={openweathermap_api_key}"
+    )
+    resp = requests.get(geo_url)
+    resp.raise_for_status()
+    results = resp.json()
+
+    if not results:
+        return None
+
+    hit = results[0]
+    # Build a friendly display name  (e.g. "New York, NY, US")
+    parts = [hit.get("name", cleaned)]
+    if hit.get("state"):
+        parts.append(hit["state"])
+    if hit.get("country"):
+        parts.append(hit["country"])
+    display = ", ".join(parts)
+
+    return hit["lat"], hit["lon"], display
+
+
 def get_current_weather(location):
     """
     Get the current weather for a given location using the OpenWeatherMap API.
     Returns a JSON string with temperature, description, humidity, and wind speed.
     """
-    # Clean up location string for the API
-    location_query = location.strip().replace(", ", ",")
-    url = (
-        f"https://api.openweathermap.org/data/2.5/weather"
-        f"?q={location_query}&appid={openweathermap_api_key}&units=imperial"
-    )
-
     try:
+        # Step 1 – resolve the city name to coordinates via the Geocoding API
+        geo = _geocode_city(location)
+        if geo is None:
+            st.session_state.weather_api_status = "error | City not found"
+            return json.dumps({"error": f"Could not find a city matching '{location}'."})
+
+        lat, lon, display_name = geo
+
+        # Step 2 – fetch weather by coordinates (more reliable than q= param)
+        url = (
+            f"https://api.openweathermap.org/data/2.5/weather"
+            f"?lat={lat}&lon={lon}&appid={openweathermap_api_key}&units=imperial"
+        )
         response = requests.get(url)
         response.raise_for_status()
         data = response.json()
 
         weather_info = {
-            "location": data.get("name", location),
+            "location": display_name,
             "temperature_f": data["main"]["temp"],
             "feels_like_f": data["main"]["feels_like"],
             "description": data["weather"][0]["description"],
@@ -81,7 +121,7 @@ tools = [
                 "properties": {
                     "location": {
                         "type": "string",
-                        "description": "The city and state/country, e.g. 'Syracuse,NY,US' or 'Lima,Peru'",
+                        "description": "The city name, optionally with state/country, e.g. 'New York', 'Syracuse, NY', or 'Lima, Peru'",
                     },
                 },
                 "required": ["location"],
@@ -93,7 +133,7 @@ tools = [
 # ---------- User Input ----------
 city_input = st.text_input(
     "Enter a city name:",
-    placeholder="e.g. Syracuse, NY, US  or  Lima, Peru",
+    placeholder="e.g. New York, Syracuse NY, Lima Peru",
 )
 
 if st.button("Get Suggestions", type="primary"):
