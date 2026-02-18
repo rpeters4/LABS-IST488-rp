@@ -218,11 +218,11 @@ with st.sidebar:
 
     status = st.session_state.weather_api_status
     if status == "success":
-        st.success("✅ OpenWeatherMap API: Connected")
+        st.success("OpenWeatherMap API: Connected")
         if st.session_state.last_weather_data:
             st.json(st.session_state.last_weather_data)
     elif status and status.startswith("error"):
-        st.error("❌ OpenWeatherMap API: Failed")
+        st.error("OpenWeatherMap API: Failed")
         st.caption(status)
     else:
         st.info("No API call made yet.")
