@@ -3,3 +3,4 @@ openai
 PyPDF2
 chromadb
 tiktoken
+pydantic
