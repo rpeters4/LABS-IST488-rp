@@ -4,3 +4,5 @@ PyPDF2
 chromadb
 tiktoken
 pydantic
+langchain
+langchain-openai
