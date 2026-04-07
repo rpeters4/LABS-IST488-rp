@@ -6,3 +6,5 @@ tiktoken
 pydantic
 langchain
 langchain-openai
+langgraph
+langgraph-supervisor
