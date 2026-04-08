@@ -1,0 +1,277 @@
+================================================================================
+  LAB MA: MULTI-AGENT SYSTEMS WITH LANGCHAIN & LANGGRAPH
+  IST 488 — Building Human-Centered AI Applications
+================================================================================
+
+OVERVIEW
+--------
+In this lab, you will build a Multi-Agent Trip Planner using LangChain and
+LangGraph. You will create a system where a Supervisor agent orchestrates
+three specialist agents — Research, Budget, and Itinerary — to collaboratively
+plan a trip that no single agent could handle alone.
+
+By the end of this lab, you will understand:
+  - What intelligent agents are and how they work in a multi-agent system
+  - How to define tools and bind them to agents using LangGraph
+  - How the Supervisor (orchestrator/subagent) pattern coordinates agents
+  - Why multi-agent systems can outperform single-agent designs
+
+
+PREREQUISITES
+-------------
+  - Python 3.10+
+  - An OpenAI API key configured in .streamlit/secrets.toml
+  - The following packages installed:
+      pip install streamlit langchain langchain-openai langgraph langgraph-supervisor
+
+
+================================================================================
+  PART 1: SETUP & ENVIRONMENT (~5 minutes)
+================================================================================
+
+Goal: Get the app running and understand the initial structure.
+
+Steps:
+  1. Open Lab_MA.py in your editor and read through the imports at the top.
+     Note the key packages: langchain_openai, langgraph, langgraph_supervisor.
+
+  2. Locate the API key setup section. This loads your OpenAI key from
+     Streamlit secrets — the same pattern used in earlier labs.
+
+  3. Note how TWO LLM instances are created:
+       - agent_llm (gpt-4o-mini) — used by the specialist agents
+       - supervisor_llm (gpt-4o-mini) — used by the supervisor
+
+  4. Run the app:
+       streamlit run streamlit_app.py
+
+  5. Navigate to the "Lab MA: Multi-Agent" page in the sidebar.
+     Verify you see:
+       - The title "Lab MA: Multi-Agent Trip Planner"
+       - The "How It Works" description
+       - The sidebar with Trip Configuration controls
+
+  ** Take a screenshot of the running app for your write-up. **
+
+
+================================================================================
+  PART 2: BUILDING SPECIALIST AGENTS (~10 minutes)
+================================================================================
+
+Goal: Understand how tools and agents are defined in LangGraph.
+
+Steps:
+  1. Read through the THREE tool functions defined with the @tool decorator:
+
+     a) search_destination(query)
+        - Looks up travel info (attractions, culture, weather, tips)
+        - Returns simulated data for known cities (Paris, Tokyo, NYC, Rome)
+        - Falls back to generic info for unknown destinations
+
+     b) calculate_budget(destination, days, budget_level)
+        - Estimates trip costs based on budget level (budget/moderate/luxury)
+        - Breaks down daily costs by category
+        - Includes flight estimates and money-saving tips
+
+     c) create_schedule(destination, days, interests)
+        - Builds a day-by-day itinerary based on traveler interests
+        - Matches activities to interest categories (food, history, art, etc.)
+
+  2. Note how each tool uses the @tool decorator from langchain_core.tools.
+     This is what makes the function callable by an agent — it registers
+     the function name, description, and parameter schema automatically.
+
+  3. Read the THREE agent definitions using create_react_agent():
+
+     a) research_agent — uses search_destination, named "research_agent"
+     b) budget_agent — uses calculate_budget, named "budget_agent"
+     c) itinerary_agent — uses create_schedule, named "itinerary_agent"
+
+  4. Each agent gets:
+     - A model (the LLM it reasons with)
+     - A list of tools (what it can do)
+     - A name (how the supervisor identifies it)
+     - A prompt (its personality and instructions)
+
+  ** Take a screenshot of the agent creation code for your write-up. **
+
+
+================================================================================
+  PART 3: CREATING THE SUPERVISOR (~8 minutes)
+================================================================================
+
+Goal: Understand how the Supervisor orchestrates the specialist agents.
+
+Steps:
+  1. Read the create_supervisor() call. Note three key arguments:
+     - agents: the list of specialist agents [research, budget, itinerary]
+     - model: the LLM the supervisor uses for routing decisions
+     - prompt: instructions telling the supervisor HOW to route tasks
+
+  2. Study the supervisor prompt carefully. It tells the supervisor:
+     - Which agents are available and what they do
+     - How to route different types of questions
+     - To delegate to ALL THREE agents for full trip planning
+     - To synthesize outputs into a single organized response
+
+  3. Note the workflow.compile() call — this converts the supervisor
+     workflow into a runnable LangGraph application.
+
+  4. Key concept: The Supervisor pattern is an ORCHESTRATOR/SUBAGENT
+     coordination protocol. The supervisor is the "brain" that decides
+     which agents to call and in what order. The agents are the "hands"
+     that do the specialized work.
+
+  ** Take a screenshot of the supervisor code for your write-up. **
+
+
+================================================================================
+  PART 4: STREAMLIT INTERFACE (~10 minutes)
+================================================================================
+
+Goal: Use the multi-agent system and observe agent coordination.
+
+Steps:
+  1. In the running app, configure your trip in the sidebar:
+     - Set a destination (try "Paris", "Tokyo", "New York", or "Rome")
+     - Adjust the trip duration slider
+     - Select a budget level
+     - Choose your interests
+
+  2. Click "Plan My Trip" and wait for the result.
+     The Supervisor will:
+       a) Receive your query
+       b) Route it to the Research Agent first
+       c) Route it to the Budget Agent next
+       d) Route it to the Itinerary Agent last
+       e) Synthesize all three responses into one trip plan
+
+  3. After the result appears, look at the sidebar for the
+     "Agent Activity Log" section. This shows:
+     - Which agents were called
+     - Which tools were invoked
+     - The order of execution
+     - Total number of messages exchanged
+
+  4. Try different queries:
+     - Change the destination to something NOT in the mock data
+       (e.g., "Barcelona") and see how the agents handle it
+     - Change the budget level and observe the cost differences
+     - Change your interests and see the itinerary adapt
+
+  ** Take a screenshot of the full trip plan output AND the Agent
+     Activity Log for your write-up. **
+
+
+================================================================================
+  PART 5: SINGLE-AGENT COMPARISON & REFLECTION (~7 minutes)
+================================================================================
+
+Goal: Compare multi-agent vs. single-agent performance.
+
+Steps:
+  1. After generating a multi-agent trip plan (Part 4), scroll down to
+     the "Experiment: Single Agent vs. Multi-Agent" section.
+
+  2. Click "Run Single-Agent Comparison". This sends the EXACT SAME
+     query to a single GPT-4o-mini with NO tools and NO agent coordination.
+
+  3. Compare the two responses:
+     - Multi-agent response: structured, tool-backed, specialized sections
+     - Single-agent response: generic, no tool access, less structured
+
+  4. Read the Reflection Questions displayed in the app and think about
+     your answers — you will need these for the write-up.
+
+  ** Take a screenshot showing BOTH the multi-agent and single-agent
+     results for your write-up. **
+
+
+================================================================================
+  WRITE-UP QUESTIONS
+================================================================================
+
+Answer the following questions in a separate document. Each response should
+be 3-5 sentences unless otherwise specified.
+
+
+QUESTION 1: Agent Architecture
+------------------------------
+Explain the Supervisor (orchestrator/subagent) pattern used in this lab.
+What role does the Supervisor play, and how does it differ from the
+specialist agents? Why is this pattern useful for complex tasks?
+
+
+QUESTION 2: Tool Design
+------------------------
+Each specialist agent has exactly ONE tool. Why is this a good design
+choice for a multi-agent system? What might go wrong if you gave all
+three tools to a single agent instead?
+
+
+QUESTION 3: Agent Coordination
+------------------------------
+Look at the Agent Activity Log in the sidebar after running a query.
+  a) In what order did the Supervisor call the agents?
+  b) Why does this order make sense for trip planning?
+  c) What would happen if the Itinerary Agent ran BEFORE the Research Agent?
+
+
+QUESTION 4: Single-Agent vs. Multi-Agent Comparison
+----------------------------------------------------
+Compare the multi-agent trip plan to the single-agent response.
+  a) Which response had more specific, actionable information? Why?
+  b) Which response was better organized? What caused that difference?
+  c) Identify at least TWO concrete examples where the multi-agent
+     response contained tool-backed data that the single-agent lacked.
+
+
+QUESTION 5: Trade-offs
+-----------------------
+Multi-agent systems are not always better. Discuss at least THREE
+trade-offs or downsides of using a multi-agent approach compared to
+a single-agent approach. Consider factors like:
+  - Latency (how long does it take?)
+  - Cost (how many API calls are made?)
+  - Complexity (how hard is it to debug?)
+  - Failure modes (what can go wrong?)
+
+
+QUESTION 6: Real-World Application
+------------------------------------
+Propose a DIFFERENT real-world scenario (not trip planning) where a
+multi-agent system would be more effective than a single agent.
+  a) Describe the scenario and the user's goal.
+  b) Define at least 3 specialist agents you would create, including
+     their names, tools, and responsibilities.
+  c) Write a 2-3 sentence supervisor prompt that would orchestrate them.
+
+
+QUESTION 7: Coordination Protocols
+------------------------------------
+The lab uses the Supervisor (orchestrator/subagent) pattern. Two other
+common patterns are:
+  - Peer-to-peer: agents communicate directly with each other
+  - Hierarchical: multiple levels of supervisors managing sub-teams
+
+Choose ONE of these alternative patterns and explain:
+  a) How it differs from the Supervisor pattern
+  b) A scenario where it would be MORE appropriate than a Supervisor
+  c) A scenario where it would be LESS appropriate
+
+
+================================================================================
+  SUBMISSION CHECKLIST
+================================================================================
+
+  [ ] Lab_MA.py — your completed lab file (should run without errors)
+  [ ] Screenshots:
+        - Part 1: App overview with sidebar controls
+        - Part 2: Agent creation code in editor
+        - Part 3: Supervisor wiring code in editor
+        - Part 4: Full trip plan output + Agent Activity Log
+        - Part 5: Multi-agent vs. single-agent comparison
+  [ ] Write-up with answers to all 7 questions
+  [ ] Deployed Streamlit app link (if required by your instructor)
+
+================================================================================
