@@ -23,15 +23,19 @@ from langgraph_supervisor import create_supervisor
 # PART 1: SETUP & ENVIRONMENT (~5 minutes)
 # ══════════════════════════════════════════════════════════════════════════════
 #
-# 📸 SCREENSHOT FOR SLIDES: Take a screenshot of the running app showing the
-#    title, description, and the sidebar controls (destination, days, budget
-#    level, interests). This demonstrates the initial UI setup.
-#
 # In this section we:
 #   - Load API keys from Streamlit secrets
 #   - Initialize the ChatOpenAI model
 #   - Set up the page title and description
 # ──────────────────────────────────────────────────────────────────────────────
+
+# ┌─────────────────────────────────────────────────────────────────────────────┐
+# │ 📸 BEGIN SCREENSHOT 1 — "App Overview & Sidebar Controls"                  │
+# │ Screenshot the running app showing: the title, the "How It Works"          │
+# │ description, AND the sidebar with Trip Configuration controls              │
+# │ (Destination, Trip Duration slider, Budget Level, Your Interests).         │
+# │ This slide demonstrates the initial UI and the user-facing interface.      │
+# └─────────────────────────────────────────────────────────────────────────────┘
 
 st.title("Lab MA: Multi-Agent Trip Planner ✈️🌍")
 st.caption(
@@ -69,14 +73,14 @@ except (KeyError, FileNotFoundError):
 agent_llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
 supervisor_llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
 
+# ┌─────────────────────────────────────────────────────────────────────────────┐
+# │ 📸 END SCREENSHOT 1                                                        │
+# └─────────────────────────────────────────────────────────────────────────────┘
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PART 2: BUILDING SPECIALIST AGENTS (~10 minutes)
 # ══════════════════════════════════════════════════════════════════════════════
-#
-# 📸 SCREENSHOT FOR SLIDES: After running a query, expand the "Agent Activity
-#    Log" in the sidebar. Screenshot the log showing which agents were called
-#    and in what order. This demonstrates agent routing and coordination.
 #
 # In this section we:
 #   - Define 3 tool functions using the @tool decorator
@@ -85,6 +89,15 @@ supervisor_llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
 # Each tool returns simulated (mock) data so the lab works without external
 # travel APIs. The LLM still reasons about the data and composes its response.
 # ──────────────────────────────────────────────────────────────────────────────
+
+# ┌─────────────────────────────────────────────────────────────────────────────┐
+# │ 📸 BEGIN SCREENSHOT 2 — "Tool Definitions & Agent Creation"                │
+# │ Screenshot the CODE in your editor showing:                                │
+# │   • The @tool decorated functions (search_destination, calculate_budget,   │
+# │     create_schedule)                                                       │
+# │   • The create_react_agent() calls that wire each tool to an agent         │
+# │ This slide shows how tools and agents are defined in LangGraph.            │
+# └─────────────────────────────────────────────────────────────────────────────┘
 
 # --- Tool 1: Destination Research ---
 @tool
@@ -344,15 +357,14 @@ itinerary_agent = create_react_agent(
     ),
 )
 
+# ┌─────────────────────────────────────────────────────────────────────────────┐
+# │ 📸 END SCREENSHOT 2                                                        │
+# └─────────────────────────────────────────────────────────────────────────────┘
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PART 3: CREATING THE SUPERVISOR (~8 minutes)
 # ══════════════════════════════════════════════════════════════════════════════
-#
-# 📸 SCREENSHOT FOR SLIDES: Screenshot the full trip plan output after
-#    clicking "Plan My Trip" — showing the Research, Budget, and Itinerary
-#    sections combined. This demonstrates how the Supervisor synthesizes
-#    results from all three agents into one cohesive plan.
 #
 # The Supervisor pattern:
 #   - Receives the user's request
@@ -363,6 +375,14 @@ itinerary_agent = create_react_agent(
 # This is the ORCHESTRATOR/SUBAGENT coordination protocol — one of the key
 # concepts from the multi-agent systems presentation.
 # ──────────────────────────────────────────────────────────────────────────────
+
+# ┌─────────────────────────────────────────────────────────────────────────────┐
+# │ 📸 BEGIN SCREENSHOT 3 — "Supervisor Wiring & Compiled Graph"               │
+# │ Screenshot the CODE showing:                                               │
+# │   • The create_supervisor() call with the three agents and prompt          │
+# │   • The workflow.compile() call                                            │
+# │ This slide explains how the orchestrator is configured and compiled.       │
+# └─────────────────────────────────────────────────────────────────────────────┘
 
 workflow = create_supervisor(
     agents=[research_agent, budget_agent, itinerary_agent],
@@ -387,15 +407,14 @@ workflow = create_supervisor(
 # Compile the graph — this creates the runnable multi-agent system
 multi_agent_app = workflow.compile()
 
+# ┌─────────────────────────────────────────────────────────────────────────────┐
+# │ 📸 END SCREENSHOT 3                                                        │
+# └─────────────────────────────────────────────────────────────────────────────┘
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PART 4: STREAMLIT INTERFACE (~10 minutes)
 # ══════════════════════════════════════════════════════════════════════════════
-#
-# 📸 SCREENSHOT FOR SLIDES: Take a screenshot showing the sidebar with all
-#    the trip configuration options filled in (destination, days, budget level,
-#    interests) alongside the main content area. This shows the complete UI
-#    that students build in Part 4.
 #
 # In this section we:
 #   - Create sidebar controls for trip configuration
@@ -403,6 +422,15 @@ multi_agent_app = workflow.compile()
 #   - Invoke the multi-agent graph and display results
 #   - Show agent activity in the debug panel
 # ──────────────────────────────────────────────────────────────────────────────
+
+# ┌─────────────────────────────────────────────────────────────────────────────┐
+# │ 📸 BEGIN SCREENSHOT 4 — "Full Trip Plan Output + Agent Activity Log"       │
+# │ After clicking "Plan My Trip", screenshot the RUNNING APP showing:         │
+# │   • The "Your Trip Plan" section with Research, Budget & Itinerary output  │
+# │   • The sidebar "Agent Activity Log" expanded (showing execution order)    │
+# │ This slide demonstrates the Supervisor synthesizing all three agents'      │
+# │ outputs AND the agent routing/coordination in the debug log.               │
+# └─────────────────────────────────────────────────────────────────────────────┘
 
 # --- Sidebar Controls ---
 with st.sidebar:
@@ -471,13 +499,6 @@ if st.session_state.ma_result:
     st.subheader("🌟 Your Trip Plan")
     st.markdown(st.session_state.ma_result)
 
-    #
-    # 📸 SCREENSHOT FOR SLIDES: Expand the "Agent Activity Log" below and
-    #    screenshot it. This shows students the full message trace — which
-    #    agents were called, their tool calls, and the order of execution.
-    #    This is a KEY visual for explaining multi-agent coordination.
-    #
-
     # --- Agent Activity Log (Debug Panel) ---
     if st.session_state.ma_messages:
         with st.sidebar:
@@ -520,16 +541,14 @@ if st.session_state.ma_result:
 
             st.write(f"**Total messages:** {len(st.session_state.ma_messages)}")
 
+# ┌─────────────────────────────────────────────────────────────────────────────┐
+# │ 📸 END SCREENSHOT 4                                                        │
+# └─────────────────────────────────────────────────────────────────────────────┘
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PART 5: SINGLE-AGENT COMPARISON & REFLECTION (~7 minutes)
 # ══════════════════════════════════════════════════════════════════════════════
-#
-# 📸 SCREENSHOT FOR SLIDES: Take a screenshot showing BOTH the multi-agent
-#    result (above) and the single-agent result (below) side by side. This
-#    is the most important screenshot — it visually demonstrates WHY
-#    multi-agent systems outperform single-agent designs. Highlight the
-#    differences in depth, structure, and accuracy between the two.
 #
 # In this section we:
 #   - Add a "Compare with Single Agent" mode
@@ -539,6 +558,16 @@ if st.session_state.ma_result:
 # This directly connects to the presentation topic: "How do agents in a
 # MAS show adaptability and improved performance compared to a single agent?"
 # ──────────────────────────────────────────────────────────────────────────────
+
+# ┌─────────────────────────────────────────────────────────────────────────────┐
+# │ 📸 BEGIN SCREENSHOT 5 — "Single-Agent vs Multi-Agent Comparison"           │
+# │ Screenshot the RUNNING APP showing BOTH results visible:                   │
+# │   • The multi-agent "Your Trip Plan" output (from Part 4 above)            │
+# │   • The single-agent response (below, after clicking the button)           │
+# │ This is the MOST IMPORTANT slide — it visually demonstrates WHY            │
+# │ multi-agent systems outperform single-agent designs. Highlight the         │
+# │ differences in depth, structure, and tool-backed accuracy.                 │
+# └─────────────────────────────────────────────────────────────────────────────┘
 
 st.divider()
 st.subheader("🔬 Experiment: Single Agent vs. Multi-Agent")
@@ -565,15 +594,6 @@ if st.session_state.ma_single_result:
     st.markdown("### Single-Agent Response")
     st.markdown(st.session_state.ma_single_result)
 
-    #
-    # 📸 SCREENSHOT FOR SLIDES: Screenshot this reflection section with
-    #    both results visible. Use this to discuss:
-    #    1. The multi-agent response has REAL data (from tools)
-    #    2. The single-agent response is generic (no tool access)
-    #    3. The multi-agent response is more structured (specialized agents)
-    #    4. The supervisor successfully coordinated the workflow
-    #
-
     st.divider()
     st.markdown(
         """
@@ -593,3 +613,7 @@ if st.session_state.ma_single_result:
            (Think about: latency, cost, complexity, failure modes)
         """
     )
+
+# ┌─────────────────────────────────────────────────────────────────────────────┐
+# │ 📸 END SCREENSHOT 5                                                        │
+# └─────────────────────────────────────────────────────────────────────────────┘
