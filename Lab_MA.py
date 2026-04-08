@@ -99,6 +99,12 @@ supervisor_llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
 # │ This slide shows how tools and agents are defined in LangGraph.            │
 # └─────────────────────────────────────────────────────────────────────────────┘
 
+# --- Load travel data from JSON ---
+# All destination info, costs, and activities are stored in travel_data.json
+# This keeps the data separate from the logic and makes it easy to extend.
+with open("travel_data.json", "r") as f:
+    TRAVEL_DATA = json.load(f)
+
 # --- Tool 1: Destination Research ---
 @tool
 def search_destination(query: str) -> str:
@@ -106,37 +112,7 @@ def search_destination(query: str) -> str:
     Use this tool to find details about attractions, culture, weather,
     and practical travel tips for any destination."""
 
-    # Simulated travel data — in a production system this would call a real API
-    destinations = {
-        "paris": {
-            "highlights": "Eiffel Tower, Louvre Museum, Notre-Dame, Montmartre, Seine River cruises",
-            "best_time": "April-June or September-October for mild weather",
-            "culture": "Rich art scene, café culture, fashion capital, French cuisine",
-            "tips": "Learn basic French phrases, metro is efficient, museums closed on Tuesdays",
-            "weather": "Mild summers (20-25°C), cold winters (3-7°C), rain year-round",
-        },
-        "tokyo": {
-            "highlights": "Shibuya Crossing, Senso-ji Temple, Akihabara, Mt. Fuji day trips, Tsukiji Market",
-            "best_time": "March-May (cherry blossoms) or October-November (fall foliage)",
-            "culture": "Blend of ancient and ultra-modern, anime culture, tea ceremonies, onsen baths",
-            "tips": "Get a Suica card for transit, bow as greeting, cash still common, shoes off indoors",
-            "weather": "Hot humid summers, mild winters, rainy season in June",
-        },
-        "new york": {
-            "highlights": "Statue of Liberty, Central Park, Times Square, Broadway, Brooklyn Bridge",
-            "best_time": "April-June or September-November for pleasant weather",
-            "culture": "Diverse food scene, world-class museums, live music and theater",
-            "tips": "Get a MetroCard, walk everywhere in Manhattan, book Broadway tickets early",
-            "weather": "Hot summers (28-32°C), cold winters (-2 to 4°C), beautiful fall colors",
-        },
-        "rome": {
-            "highlights": "Colosseum, Vatican Museums, Trevi Fountain, Pantheon, Roman Forum",
-            "best_time": "April-May or September-October to avoid summer crowds",
-            "culture": "Ancient history everywhere, incredible food, gelato culture, espresso bars",
-            "tips": "Wear comfortable shoes, book Vatican tickets in advance, beware of pickpockets",
-            "weather": "Hot dry summers (30°C+), mild winters (8-12°C), very pleasant spring/fall",
-        },
-    }
+    destinations = TRAVEL_DATA["destinations"]
 
     # Search for matching destination (case-insensitive)
     query_lower = query.lower()
@@ -167,43 +143,13 @@ def calculate_budget(destination: str, days: int, budget_level: str) -> str:
     Use this tool when asked about costs, expenses, or budget planning.
     budget_level should be one of: 'budget', 'moderate', or 'luxury'."""
 
-    # Daily cost estimates by budget level (USD)
-    cost_table = {
-        "budget": {
-            "accommodation": 60,
-            "food": 30,
-            "transport": 15,
-            "activities": 20,
-            "misc": 10,
-        },
-        "moderate": {
-            "accommodation": 150,
-            "food": 60,
-            "transport": 30,
-            "activities": 50,
-            "misc": 25,
-        },
-        "luxury": {
-            "accommodation": 350,
-            "food": 120,
-            "transport": 60,
-            "activities": 100,
-            "misc": 50,
-        },
-    }
+    cost_table = TRAVEL_DATA["daily_costs"]
+    flight_estimates = TRAVEL_DATA["flight_estimates"]
 
     level = budget_level.lower() if budget_level.lower() in cost_table else "moderate"
     daily = cost_table[level]
     daily_total = sum(daily.values())
 
-    # Estimate flights based on destination
-    flight_estimates = {
-        "paris": 800,
-        "tokyo": 1200,
-        "new york": 400,
-        "rome": 900,
-        "default": 700,
-    }
     flight_cost = flight_estimates.get(destination.lower(), flight_estimates["default"])
 
     budget_breakdown = {
@@ -215,12 +161,7 @@ def calculate_budget(destination: str, days: int, budget_level: str) -> str:
         "daily_total": f"${daily_total}/day",
         "total_daily_costs": f"${daily_total * days}",
         "estimated_grand_total": f"${flight_cost + daily_total * days}",
-        "money_saving_tips": [
-            "Book flights 2-3 months in advance",
-            "Use public transit instead of taxis",
-            "Eat at local restaurants, not tourist traps",
-            "Look for free walking tours and museum free-days",
-        ],
+        "money_saving_tips": TRAVEL_DATA["money_saving_tips"],
     }
     return json.dumps(budget_breakdown, indent=2)
 
@@ -233,46 +174,7 @@ def create_schedule(destination: str, days: int, interests: str) -> str:
     interests should be a comma-separated list of traveler interests."""
 
     interest_list = [i.strip().lower() for i in interests.split(",")]
-
-    # Build a generic but realistic itinerary
-    activities_pool = {
-        "food": [
-            "Food tour of local markets",
-            "Cooking class with a local chef",
-            "Fine dining at a top-rated restaurant",
-            "Street food walking tour",
-        ],
-        "history": [
-            "Guided historical walking tour",
-            "Visit to the national museum",
-            "Explore ancient ruins or monuments",
-            "Architecture and heritage tour",
-        ],
-        "art": [
-            "Visit the main art gallery",
-            "Street art and mural walk",
-            "Local artisan workshop visit",
-            "Contemporary art museum tour",
-        ],
-        "nature": [
-            "Scenic park or garden walk",
-            "Day hike at a nearby trail",
-            "Sunset viewpoint excursion",
-            "Botanical garden visit",
-        ],
-        "nightlife": [
-            "Rooftop bar with city views",
-            "Live music venue",
-            "Local pub crawl experience",
-            "Evening river or harbor cruise",
-        ],
-        "shopping": [
-            "Visit to famous shopping district",
-            "Local flea market exploration",
-            "Souvenir shopping in artisan quarter",
-            "Designer outlet excursion",
-        ],
-    }
+    activities_pool = TRAVEL_DATA["activities"]
 
     # Collect relevant activities
     available = []
@@ -616,4 +518,223 @@ if st.session_state.ma_single_result:
 
 # ┌─────────────────────────────────────────────────────────────────────────────┐
 # │ 📸 END SCREENSHOT 5                                                        │
+# └─────────────────────────────────────────────────────────────────────────────┘
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 6: CHATBOT MODE — USING MessagesState & StateGraph
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# In Parts 1-5 we used create_supervisor() which is a HIGH-LEVEL helper.
+# Under the hood, it builds a StateGraph for you. In this section, we
+# build a conversational chatbot using the LOWER-LEVEL LangGraph primitives:
+#
+#   - MessagesState: a TypedDict that holds a list of messages as graph state
+#   - StateGraph: the core graph builder where you add nodes and edges
+#   - Nodes: functions that process the current state and return updates
+#   - Edges: connections between nodes (static or conditional)
+#
+# This gives you a deeper understanding of how multi-agent systems work
+# under the hood, and lets you build a CONVERSATIONAL version that
+# remembers previous messages.
+# ──────────────────────────────────────────────────────────────────────────────
+
+from langgraph.graph import StateGraph, MessagesState, START, END
+
+st.divider()
+st.subheader("💬 Part 6: Multi-Agent Chatbot")
+st.markdown(
+    """
+    This chatbot uses **MessagesState** and **StateGraph** — the lower-level
+    LangGraph primitives — to build a conversational multi-agent system.
+    Instead of the high-level `create_supervisor()`, the graph is wired
+    manually with nodes and edges.
+    """
+)
+
+# ┌─────────────────────────────────────────────────────────────────────────────┐
+# │ 📸 BEGIN SCREENSHOT 6 — "Chatbot with MessagesState & StateGraph"          │
+# │ Screenshot the RUNNING APP showing the chatbot in action:                  │
+# │   • A user message and a multi-agent response in the chat history          │
+# │   • The sidebar showing which agents handled the latest message            │
+# │ This slide demonstrates conversational multi-agent coordination.           │
+# └─────────────────────────────────────────────────────────────────────────────┘
+
+
+# --- Define the graph nodes ---
+# Each node is a function that takes the current state (MessagesState)
+# and returns a dict with updated messages.
+
+def supervisor_node(state: MessagesState):
+    """The supervisor reads the latest user message and decides which
+    agent(s) to route to. It returns routing instructions as a message."""
+    messages = state["messages"]
+
+    routing_prompt = (
+        "You are a trip planning supervisor. Based on the user's message, "
+        "decide which specialist to call:\n"
+        "  - 'research' for destination info questions\n"
+        "  - 'budget' for cost/money questions\n"
+        "  - 'itinerary' for schedule/planning questions\n"
+        "  - 'all' if the user wants a complete trip plan\n"
+        "  - 'chat' for general conversation or follow-ups\n\n"
+        "Respond with ONLY one word: research, budget, itinerary, all, or chat."
+    )
+
+    response = supervisor_llm.invoke(
+        [{"role": "system", "content": routing_prompt}] + messages
+    )
+    return {"messages": [response]}
+
+
+def research_node(state: MessagesState):
+    """Runs the research agent on the conversation."""
+    result = research_agent.invoke({"messages": state["messages"]})
+    return {"messages": result["messages"]}
+
+
+def budget_node(state: MessagesState):
+    """Runs the budget agent on the conversation."""
+    result = budget_agent.invoke({"messages": state["messages"]})
+    return {"messages": result["messages"]}
+
+
+def itinerary_node(state: MessagesState):
+    """Runs the itinerary agent on the conversation."""
+    result = itinerary_agent.invoke({"messages": state["messages"]})
+    return {"messages": result["messages"]}
+
+
+def synthesizer_node(state: MessagesState):
+    """Reads all agent outputs and produces a final conversational response."""
+    messages = state["messages"]
+
+    synth_prompt = (
+        "You are a friendly trip planning assistant. Based on the full "
+        "conversation above (which may include outputs from specialist agents), "
+        "provide a helpful, well-organized response to the user. "
+        "Be conversational — the user may ask follow-up questions."
+    )
+
+    response = agent_llm.invoke(
+        [{"role": "system", "content": synth_prompt}] + messages
+    )
+    return {"messages": [response]}
+
+
+# --- Route function for conditional edges ---
+def route_from_supervisor(state: MessagesState):
+    """Reads the supervisor's routing decision and returns the next node name."""
+    last_msg = state["messages"][-1].content.strip().lower()
+
+    if "research" in last_msg:
+        return "research"
+    elif "budget" in last_msg:
+        return "budget"
+    elif "itinerary" in last_msg:
+        return "itinerary"
+    elif "all" in last_msg:
+        return "all"
+    else:
+        return "chat"
+
+
+def run_all_agents(state: MessagesState):
+    """Sequentially runs all three agents for a full trip plan."""
+    research_result = research_agent.invoke({"messages": state["messages"]})
+    budget_result = budget_agent.invoke({"messages": state["messages"]})
+    itinerary_result = itinerary_agent.invoke({"messages": state["messages"]})
+
+    # Combine all new messages
+    all_new = (
+        research_result["messages"] +
+        budget_result["messages"] +
+        itinerary_result["messages"]
+    )
+    return {"messages": all_new}
+
+
+# --- Build the StateGraph ---
+# This is the manual equivalent of create_supervisor().
+# We define nodes, then connect them with edges.
+
+chatbot_graph = StateGraph(MessagesState)
+
+# Add nodes
+chatbot_graph.add_node("supervisor", supervisor_node)
+chatbot_graph.add_node("research", research_node)
+chatbot_graph.add_node("budget", budget_node)
+chatbot_graph.add_node("itinerary", itinerary_node)
+chatbot_graph.add_node("all_agents", run_all_agents)
+chatbot_graph.add_node("synthesizer", synthesizer_node)
+
+# Add edges:
+# START -> supervisor (every message goes to supervisor first)
+chatbot_graph.add_edge(START, "supervisor")
+
+# supervisor -> conditional routing based on the routing decision
+chatbot_graph.add_conditional_edges(
+    "supervisor",
+    route_from_supervisor,
+    {
+        "research": "research",
+        "budget": "budget",
+        "itinerary": "itinerary",
+        "all": "all_agents",
+        "chat": "synthesizer",
+    },
+)
+
+# Each specialist -> synthesizer (to produce a final response)
+chatbot_graph.add_edge("research", "synthesizer")
+chatbot_graph.add_edge("budget", "synthesizer")
+chatbot_graph.add_edge("itinerary", "synthesizer")
+chatbot_graph.add_edge("all_agents", "synthesizer")
+
+# synthesizer -> END
+chatbot_graph.add_edge("synthesizer", END)
+
+# Compile the graph
+chatbot_app = chatbot_graph.compile()
+
+
+# --- Streamlit Chat Interface ---
+if "chatbot_messages" not in st.session_state:
+    st.session_state.chatbot_messages = []
+
+# Display chat history
+for message in st.session_state.chatbot_messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+# Chat input
+if user_input := st.chat_input("Ask me to plan a trip, check costs, or find info..."):
+    # Add user message to display history
+    st.session_state.chatbot_messages.append({"role": "user", "content": user_input})
+    with st.chat_message("user"):
+        st.markdown(user_input)
+
+    # Build the full message list for the graph
+    graph_messages = [
+        {"role": m["role"], "content": m["content"]}
+        for m in st.session_state.chatbot_messages
+    ]
+
+    with st.spinner("🤖 Agents are working..."):
+        try:
+            result = chatbot_app.invoke({"messages": graph_messages})
+            # Get the last AI message as the response
+            assistant_response = result["messages"][-1].content
+
+            # Display and store
+            with st.chat_message("assistant"):
+                st.markdown(assistant_response)
+            st.session_state.chatbot_messages.append(
+                {"role": "assistant", "content": assistant_response}
+            )
+        except Exception as e:
+            st.error(f"Error: {e}")
+
+# ┌─────────────────────────────────────────────────────────────────────────────┐
+# │ 📸 END SCREENSHOT 6                                                        │
 # └─────────────────────────────────────────────────────────────────────────────┘

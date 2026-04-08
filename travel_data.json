@@ -1,0 +1,138 @@
+{
+  "destinations": {
+    "paris": {
+      "highlights": "Eiffel Tower, Louvre Museum, Notre-Dame, Montmartre, Seine River cruises",
+      "best_time": "April-June or September-October for mild weather",
+      "culture": "Rich art scene, café culture, fashion capital, French cuisine",
+      "tips": "Learn basic French phrases, metro is efficient, museums closed on Tuesdays",
+      "weather": "Mild summers (20-25°C), cold winters (3-7°C), rain year-round"
+    },
+    "tokyo": {
+      "highlights": "Shibuya Crossing, Senso-ji Temple, Akihabara, Mt. Fuji day trips, Tsukiji Market",
+      "best_time": "March-May (cherry blossoms) or October-November (fall foliage)",
+      "culture": "Blend of ancient and ultra-modern, anime culture, tea ceremonies, onsen baths",
+      "tips": "Get a Suica card for transit, bow as greeting, cash still common, shoes off indoors",
+      "weather": "Hot humid summers, mild winters, rainy season in June"
+    },
+    "new york": {
+      "highlights": "Statue of Liberty, Central Park, Times Square, Broadway, Brooklyn Bridge",
+      "best_time": "April-June or September-November for pleasant weather",
+      "culture": "Diverse food scene, world-class museums, live music and theater",
+      "tips": "Get a MetroCard, walk everywhere in Manhattan, book Broadway tickets early",
+      "weather": "Hot summers (28-32°C), cold winters (-2 to 4°C), beautiful fall colors"
+    },
+    "rome": {
+      "highlights": "Colosseum, Vatican Museums, Trevi Fountain, Pantheon, Roman Forum",
+      "best_time": "April-May or September-October to avoid summer crowds",
+      "culture": "Ancient history everywhere, incredible food, gelato culture, espresso bars",
+      "tips": "Wear comfortable shoes, book Vatican tickets in advance, beware of pickpockets",
+      "weather": "Hot dry summers (30°C+), mild winters (8-12°C), very pleasant spring/fall"
+    },
+    "london": {
+      "highlights": "Big Ben, Tower of London, British Museum, Buckingham Palace, West End theaters",
+      "best_time": "May-September for warmest weather and longest days",
+      "culture": "Royal heritage, pub culture, afternoon tea, world-class theater scene",
+      "tips": "Get an Oyster card for the Tube, carry an umbrella, tipping is 10-15%",
+      "weather": "Cool mild climate (12-23°C summer), frequent rain, grey winters"
+    },
+    "barcelona": {
+      "highlights": "Sagrada Familia, Park Güell, La Rambla, Gothic Quarter, Barceloneta Beach",
+      "best_time": "May-June or September-October for warm weather without extreme heat",
+      "culture": "Catalan identity, tapas and paella, Gaudí architecture, vibrant nightlife",
+      "tips": "Watch for pickpockets on La Rambla, siesta hours 2-5pm, learn basic Spanish",
+      "weather": "Hot summers (28-30°C), mild winters (10-15°C), Mediterranean climate"
+    },
+    "sydney": {
+      "highlights": "Sydney Opera House, Harbour Bridge, Bondi Beach, Taronga Zoo, Blue Mountains",
+      "best_time": "September-November or March-May (spring/autumn in Southern Hemisphere)",
+      "culture": "Beach lifestyle, multicultural food scene, indigenous heritage, outdoor living",
+      "tips": "Seasons are reversed from Northern Hemisphere, slip-slop-slap for sun safety",
+      "weather": "Warm summers (25-30°C Dec-Feb), mild winters (10-17°C Jun-Aug)"
+    },
+    "bangkok": {
+      "highlights": "Grand Palace, Wat Pho, Chatuchak Market, Khao San Road, Chao Phraya River",
+      "best_time": "November-February for cooler, drier weather",
+      "culture": "Buddhist temples, street food capital, tuk-tuk rides, Thai massage tradition",
+      "tips": "Dress modestly at temples, negotiate tuk-tuk fares, street food is safe and amazing",
+      "weather": "Hot year-round (30-35°C), monsoon season June-October, high humidity"
+    }
+  },
+  "flight_estimates": {
+    "paris": 800,
+    "tokyo": 1200,
+    "new york": 400,
+    "rome": 900,
+    "london": 750,
+    "barcelona": 850,
+    "sydney": 1500,
+    "bangkok": 1100,
+    "default": 700
+  },
+  "daily_costs": {
+    "budget": {
+      "accommodation": 60,
+      "food": 30,
+      "transport": 15,
+      "activities": 20,
+      "misc": 10
+    },
+    "moderate": {
+      "accommodation": 150,
+      "food": 60,
+      "transport": 30,
+      "activities": 50,
+      "misc": 25
+    },
+    "luxury": {
+      "accommodation": 350,
+      "food": 120,
+      "transport": 60,
+      "activities": 100,
+      "misc": 50
+    }
+  },
+  "activities": {
+    "food": [
+      "Food tour of local markets",
+      "Cooking class with a local chef",
+      "Fine dining at a top-rated restaurant",
+      "Street food walking tour"
+    ],
+    "history": [
+      "Guided historical walking tour",
+      "Visit to the national museum",
+      "Explore ancient ruins or monuments",
+      "Architecture and heritage tour"
+    ],
+    "art": [
+      "Visit the main art gallery",
+      "Street art and mural walk",
+      "Local artisan workshop visit",
+      "Contemporary art museum tour"
+    ],
+    "nature": [
+      "Scenic park or garden walk",
+      "Day hike at a nearby trail",
+      "Sunset viewpoint excursion",
+      "Botanical garden visit"
+    ],
+    "nightlife": [
+      "Rooftop bar with city views",
+      "Live music venue",
+      "Local pub crawl experience",
+      "Evening river or harbor cruise"
+    ],
+    "shopping": [
+      "Visit to famous shopping district",
+      "Local flea market exploration",
+      "Souvenir shopping in artisan quarter",
+      "Designer outlet excursion"
+    ]
+  },
+  "money_saving_tips": [
+    "Book flights 2-3 months in advance",
+    "Use public transit instead of taxis",
+    "Eat at local restaurants, not tourist traps",
+    "Look for free walking tours and museum free-days"
+  ]
+}

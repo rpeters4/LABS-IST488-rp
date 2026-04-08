@@ -5,194 +5,463 @@
 
 OVERVIEW
 --------
-In this lab, you will build a Multi-Agent Trip Planner using LangChain and
-LangGraph. You will create a system where a Supervisor agent orchestrates
-three specialist agents — Research, Budget, and Itinerary — to collaboratively
-plan a trip that no single agent could handle alone.
+In this lab, you will build a Multi-Agent Trip Planner as a Streamlit app.
+A Supervisor agent will orchestrate three specialist agents — Research,
+Budget, and Itinerary — to collaboratively plan a trip. No single agent
+can produce a complete plan; they must coordinate through the Supervisor.
 
-By the end of this lab, you will understand:
-  - What intelligent agents are and how they work in a multi-agent system
-  - How to define tools and bind them to agents using LangGraph
-  - How the Supervisor (orchestrator/subagent) pattern coordinates agents
-  - Why multi-agent systems can outperform single-agent designs
+By the end of this lab you will:
+  - Define custom tools using LangChain's @tool decorator
+  - Create specialist agents with create_react_agent()
+  - Wire them together under a Supervisor using create_supervisor()
+  - Build a Streamlit UI to interact with the multi-agent system
+  - Compare multi-agent output against a single-agent baseline
+
+Time: ~40 minutes
 
 
-PREREQUISITES
--------------
-  - Python 3.10+
-  - An OpenAI API key configured in .streamlit/secrets.toml
-  - The following packages installed:
-      pip install streamlit langchain langchain-openai langgraph langgraph-supervisor
+SETUP
+-----
+1. Install the required packages (run in your terminal):
+
+     pip install streamlit langchain langchain-openai langgraph langgraph-supervisor
+
+2. Make sure your OpenAI API key is configured in .streamlit/secrets.toml:
+
+     OPENAI_API_KEY = "sk-..."
+
+3. You are provided a file called travel_data.json which contains all the
+   destination information, cost data, and activity pools. Place this file
+   in your LABS-IST488 directory.
+
+4. Create a new file called Lab_MA.py in your LABS-IST488 directory.
+
+5. Add Lab_MA.py to your streamlit_app.py navigation so you can access it.
 
 
 ================================================================================
   PART 1: SETUP & ENVIRONMENT (~5 minutes)
 ================================================================================
 
-Goal: Get the app running and understand the initial structure.
+At the top of your Lab_MA.py file, add the following imports:
 
-Steps:
-  1. Open Lab_MA.py in your editor and read through the imports at the top.
-     Note the key packages: langchain_openai, langgraph, langgraph_supervisor.
+    import os
+    import json
+    import streamlit as st
+    from langchain_openai import ChatOpenAI
+    from langchain_core.tools import tool
+    from langgraph.prebuilt import create_react_agent
+    from langgraph_supervisor import create_supervisor
 
-  2. Locate the API key setup section. This loads your OpenAI key from
-     Streamlit secrets — the same pattern used in earlier labs.
+Then set up the page:
+  - Add a title: "Lab MA: Multi-Agent Trip Planner"
+  - Add a brief description explaining how the system works (a Supervisor
+    coordinates three specialist agents: Research, Budget, Itinerary)
+  - Load the OpenAI API key from st.secrets (same pattern as earlier labs)
+  - Create TWO ChatOpenAI instances:
+      agent_llm   = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+      supervisor_llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
 
-  3. Note how TWO LLM instances are created:
-       - agent_llm (gpt-4o-mini) — used by the specialist agents
-       - supervisor_llm (gpt-4o-mini) — used by the supervisor
-
-  4. Run the app:
-       streamlit run streamlit_app.py
-
-  5. Navigate to the "Lab MA: Multi-Agent" page in the sidebar.
-     Verify you see:
-       - The title "Lab MA: Multi-Agent Trip Planner"
-       - The "How It Works" description
-       - The sidebar with Trip Configuration controls
-
-  ** Take a screenshot of the running app for your write-up. **
+When complete, run `streamlit run streamlit_app.py` and verify your page
+loads with the title and description.
 
 
 ================================================================================
   PART 2: BUILDING SPECIALIST AGENTS (~10 minutes)
 ================================================================================
 
-Goal: Understand how tools and agents are defined in LangGraph.
+In this section you will define three tools and three agents.
 
-Steps:
-  1. Read through the THREE tool functions defined with the @tool decorator:
+--- STEP 2A: Load the Travel Data ---
 
-     a) search_destination(query)
-        - Looks up travel info (attractions, culture, weather, tips)
-        - Returns simulated data for known cities (Paris, Tokyo, NYC, Rome)
-        - Falls back to generic info for unknown destinations
+First, load the travel_data.json file at the top of your tools section.
+This file contains all destinations, costs, activities, and tips:
 
-     b) calculate_budget(destination, days, budget_level)
-        - Estimates trip costs based on budget level (budget/moderate/luxury)
-        - Breaks down daily costs by category
-        - Includes flight estimates and money-saving tips
+    with open("travel_data.json", "r") as f:
+        TRAVEL_DATA = json.load(f)
 
-     c) create_schedule(destination, days, interests)
-        - Builds a day-by-day itinerary based on traveler interests
-        - Matches activities to interest categories (food, history, art, etc.)
+The JSON file has this structure:
+  - destinations: dict of city names -> {highlights, best_time, culture, tips, weather}
+  - flight_estimates: dict of city names -> estimated roundtrip flight cost (USD)
+  - daily_costs: dict of budget levels -> {accommodation, food, transport, activities, misc}
+  - activities: dict of interest categories -> list of activity strings
+  - money_saving_tips: list of tip strings
 
-  2. Note how each tool uses the @tool decorator from langchain_core.tools.
-     This is what makes the function callable by an agent — it registers
-     the function name, description, and parameter schema automatically.
 
-  3. Read the THREE agent definitions using create_react_agent():
+--- STEP 2B: Define the Tools ---
 
-     a) research_agent — uses search_destination, named "research_agent"
-     b) budget_agent — uses calculate_budget, named "budget_agent"
-     c) itinerary_agent — uses create_schedule, named "itinerary_agent"
+Each tool is a Python function decorated with @tool. The decorator
+automatically registers the function's name, docstring, and parameter
+types so that an LLM agent can call it. Here is the pattern:
 
-  4. Each agent gets:
-     - A model (the LLM it reasons with)
-     - A list of tools (what it can do)
-     - A name (how the supervisor identifies it)
-     - A prompt (its personality and instructions)
+    @tool
+    def my_tool_name(param1: str, param2: int) -> str:
+        """Description of what this tool does. The LLM reads this."""
+        # ... your logic ...
+        return json.dumps(result)
 
-  ** Take a screenshot of the agent creation code for your write-up. **
+Create THREE tools that pull data from TRAVEL_DATA:
+
+  1. search_destination(query: str) -> str
+     Purpose: Look up travel info about a destination.
+     Implementation: Read TRAVEL_DATA["destinations"]. Match the user's
+     query against city names (case-insensitive). Return the matching
+     city's data as a JSON string. If no city matches, return generic
+     fallback info.
+
+  2. calculate_budget(destination: str, days: int, budget_level: str) -> str
+     Purpose: Estimate trip costs.
+     Implementation: Read TRAVEL_DATA["daily_costs"] and
+     TRAVEL_DATA["flight_estimates"]. Look up the daily rate for the
+     given budget level, calculate totals based on the number of days,
+     add the flight cost. Include TRAVEL_DATA["money_saving_tips"].
+     Return everything as JSON.
+
+  3. create_schedule(destination: str, days: int, interests: str) -> str
+     Purpose: Build a day-by-day itinerary.
+     Implementation: Read TRAVEL_DATA["activities"]. Parse the interests
+     string, collect matching activities from the pool, and build a
+     schedule with morning/afternoon/evening slots for each day.
+     Return as JSON.
+
+TIP: These tools return SIMULATED data from the JSON file — you are not
+calling real APIs. This keeps the lab self-contained and predictable.
+The LLM still reasons about the data and composes a natural-language response.
+
+
+--- STEP 2C: Create the Agents ---
+
+Use create_react_agent() to create three specialist agents. Each agent
+needs four arguments:
+
+    agent = create_react_agent(
+        model=agent_llm,
+        tools=[your_tool],
+        name="agent_name",
+        prompt="You are a specialist in ... Always use the tool ..."
+    )
+
+Create these three agents:
+
+  1. research_agent
+     - Tools: [search_destination]
+     - Prompt: Tell it to be a travel research specialist that always
+       uses the search_destination tool to find destination info.
+
+  2. budget_agent
+     - Tools: [calculate_budget]
+     - Prompt: Tell it to be a budget specialist that always uses the
+       calculate_budget tool to estimate costs.
+
+  3. itinerary_agent
+     - Tools: [create_schedule]
+     - Prompt: Tell it to be an itinerary specialist that always uses
+       the create_schedule tool to build day-by-day plans.
+
+IMPORTANT: In each agent's prompt, instruct it to ALWAYS call its tool
+and not make up information. This ensures the agent uses the tool rather
+than relying on its own knowledge.
 
 
 ================================================================================
   PART 3: CREATING THE SUPERVISOR (~8 minutes)
 ================================================================================
 
-Goal: Understand how the Supervisor orchestrates the specialist agents.
+The Supervisor is the central orchestrator. It receives the user's request,
+decides which agent(s) to delegate to, and synthesizes the final response.
 
-Steps:
-  1. Read the create_supervisor() call. Note three key arguments:
-     - agents: the list of specialist agents [research, budget, itinerary]
-     - model: the LLM the supervisor uses for routing decisions
-     - prompt: instructions telling the supervisor HOW to route tasks
+Use create_supervisor() to wire the agents together:
 
-  2. Study the supervisor prompt carefully. It tells the supervisor:
-     - Which agents are available and what they do
-     - How to route different types of questions
-     - To delegate to ALL THREE agents for full trip planning
-     - To synthesize outputs into a single organized response
+    workflow = create_supervisor(
+        agents=[research_agent, budget_agent, itinerary_agent],
+        model=supervisor_llm,
+        prompt="..."
+    )
 
-  3. Note the workflow.compile() call — this converts the supervisor
-     workflow into a runnable LangGraph application.
+Write a supervisor prompt that:
+  - Lists the three available agents and what each one does
+  - Instructs the supervisor to route questions:
+      * Destination questions -> research_agent
+      * Cost/budget questions -> budget_agent
+      * Schedule/itinerary questions -> itinerary_agent
+      * Full trip planning -> ALL three agents
+  - Tells the supervisor to synthesize all responses into one organized plan
 
-  4. Key concept: The Supervisor pattern is an ORCHESTRATOR/SUBAGENT
-     coordination protocol. The supervisor is the "brain" that decides
-     which agents to call and in what order. The agents are the "hands"
-     that do the specialized work.
+Then compile the workflow:
 
-  ** Take a screenshot of the supervisor code for your write-up. **
+    multi_agent_app = workflow.compile()
+
+This creates a runnable multi-agent system that you can invoke with:
+
+    result = multi_agent_app.invoke({
+        "messages": [{"role": "user", "content": "your query here"}]
+    })
+
+The final response is in: result["messages"][-1].content
 
 
 ================================================================================
   PART 4: STREAMLIT INTERFACE (~10 minutes)
 ================================================================================
 
-Goal: Use the multi-agent system and observe agent coordination.
+Build the user interface to interact with your multi-agent system.
 
-Steps:
-  1. In the running app, configure your trip in the sidebar:
-     - Set a destination (try "Paris", "Tokyo", "New York", or "Rome")
-     - Adjust the trip duration slider
-     - Select a budget level
-     - Choose your interests
+--- STEP 4A: Sidebar Controls ---
 
-  2. Click "Plan My Trip" and wait for the result.
-     The Supervisor will:
-       a) Receive your query
-       b) Route it to the Research Agent first
-       c) Route it to the Budget Agent next
-       d) Route it to the Itinerary Agent last
-       e) Synthesize all three responses into one trip plan
+In a `with st.sidebar:` block, create:
+  - A text_input for the destination (default: "Paris")
+  - A slider for trip duration (1-14 days, default: 5)
+  - A selectbox for budget level (Budget / Moderate / Luxury)
+  - A multiselect for interests (Food, History, Art, Nature, etc.)
 
-  3. After the result appears, look at the sidebar for the
-     "Agent Activity Log" section. This shows:
-     - Which agents were called
-     - Which tools were invoked
-     - The order of execution
-     - Total number of messages exchanged
+--- STEP 4B: Session State ---
 
-  4. Try different queries:
-     - Change the destination to something NOT in the mock data
-       (e.g., "Barcelona") and see how the agents handle it
-     - Change the budget level and observe the cost differences
-     - Change your interests and see the itinerary adapt
+Initialize session state variables to persist results across reruns:
 
-  ** Take a screenshot of the full trip plan output AND the Agent
-     Activity Log for your write-up. **
+    if "ma_result" not in st.session_state:
+        st.session_state.ma_result = None
+    if "ma_messages" not in st.session_state:
+        st.session_state.ma_messages = None
+
+--- STEP 4C: Query Construction & Invocation ---
+
+Build a query string from the sidebar inputs, e.g.:
+    "Plan a 5-day trip to Paris. My budget level is moderate.
+     My interests include: Food, History. Please provide destination
+     research, a budget breakdown, and a day-by-day itinerary."
+
+Create a "Plan My Trip" button. When clicked:
+  - Show a spinner while processing
+  - Invoke multi_agent_app with the query
+  - Store the result in session state
+  - Display the result using st.markdown()
+
+--- STEP 4D: Agent Activity Log ---
+
+After displaying results, add a debug section in the sidebar that shows
+which agents were called and in what order. Loop through the messages in
+the result and look for agent names and tool calls:
+
+    for msg in result["messages"]:
+        msg_name = getattr(msg, "name", None)  # agent name
+        tool_calls = getattr(msg, "tool_calls", None)  # tool invocations
+
+Display the execution order with emoji labels (e.g., 🔬 research_agent,
+💰 budget_agent, 📅 itinerary_agent).
 
 
 ================================================================================
-  PART 5: SINGLE-AGENT COMPARISON & REFLECTION (~7 minutes)
+  PART 6: CHATBOT MODE — MessagesState & StateGraph (~10 minutes bonus)
 ================================================================================
 
-Goal: Compare multi-agent vs. single-agent performance.
+In Parts 1-5 you used create_supervisor(), which is a HIGH-LEVEL helper
+that builds a graph for you automatically. In this section you will build
+a CONVERSATIONAL chatbot using the LOWER-LEVEL LangGraph primitives.
+This teaches you what is happening under the hood.
 
-Steps:
-  1. After generating a multi-agent trip plan (Part 4), scroll down to
-     the "Experiment: Single Agent vs. Multi-Agent" section.
+KEY CONCEPTS:
 
-  2. Click "Run Single-Agent Comparison". This sends the EXACT SAME
-     query to a single GPT-4o-mini with NO tools and NO agent coordination.
+  MessagesState
+  -------------
+  A TypedDict provided by LangGraph that holds a list of messages as the
+  graph's shared state. Every node in the graph reads from and writes to
+  this state. Think of it as the "conversation memory" that flows through
+  the entire graph.
 
-  3. Compare the two responses:
-     - Multi-agent response: structured, tool-backed, specialized sections
-     - Single-agent response: generic, no tool access, less structured
+      from langgraph.graph import MessagesState
+      # MessagesState is equivalent to:
+      # class MessagesState(TypedDict):
+      #     messages: list[BaseMessage]
 
-  4. Read the Reflection Questions displayed in the app and think about
-     your answers — you will need these for the write-up.
+  StateGraph
+  ----------
+  The core graph builder class. You use it to:
+    1. Define NODES (functions that process state)
+    2. Define EDGES (connections between nodes)
+    3. Compile into a runnable app
 
-  ** Take a screenshot showing BOTH the multi-agent and single-agent
-     results for your write-up. **
+      from langgraph.graph import StateGraph, START, END
+
+  Nodes
+  -----
+  Each node is a Python function that:
+    - Takes the current state (MessagesState) as input
+    - Returns a dict with the updated messages
+
+      def my_node(state: MessagesState):
+          messages = state["messages"]    # read current messages
+          # ... do something ...
+          return {"messages": [response]} # add new message(s)
+
+  Edges
+  -----
+  Connect nodes together. There are three types:
+    - Static:      graph.add_edge("node_a", "node_b")
+    - Conditional: graph.add_conditional_edges("node_a", router_fn, mapping)
+    - START/END:   graph.add_edge(START, "first_node")
+
+
+--- STEP 6A: Define Graph Nodes ---
+
+Create these node functions:
+
+  1. supervisor_node(state: MessagesState)
+     - Reads the conversation messages
+     - Uses the supervisor LLM with a routing prompt to decide which
+       agent to call
+     - The routing prompt should tell the LLM to respond with ONLY
+       one word: "research", "budget", "itinerary", "all", or "chat"
+     - Returns the LLM's response as a new message
+
+  2. research_node(state: MessagesState)
+     - Invokes the research_agent (from Part 2) with the current messages
+     - Returns the agent's output messages
+
+  3. budget_node(state: MessagesState)
+     - Invokes the budget_agent with the current messages
+     - Returns the agent's output messages
+
+  4. itinerary_node(state: MessagesState)
+     - Invokes the itinerary_agent with the current messages
+     - Returns the agent's output messages
+
+  5. run_all_agents(state: MessagesState)
+     - Sequentially invokes ALL THREE agents
+     - Combines all their output messages and returns them
+
+  6. synthesizer_node(state: MessagesState)
+     - Takes the full conversation (including agent outputs)
+     - Uses the LLM to produce a single, well-organized response
+     - This is the "final answer" node
+
+
+--- STEP 6B: Define the Router ---
+
+Create a routing function:
+
+    def route_from_supervisor(state: MessagesState):
+        last_msg = state["messages"][-1].content.strip().lower()
+        if "research" in last_msg:
+            return "research"
+        elif "budget" in last_msg:
+            return "budget"
+        elif "itinerary" in last_msg:
+            return "itinerary"
+        elif "all" in last_msg:
+            return "all"
+        else:
+            return "chat"
+
+This reads the supervisor's one-word routing decision and returns the
+name of the next node to execute.
+
+
+--- STEP 6C: Build the StateGraph ---
+
+Now wire everything together:
+
+    chatbot_graph = StateGraph(MessagesState)
+
+    # 1. Add all nodes
+    chatbot_graph.add_node("supervisor", supervisor_node)
+    chatbot_graph.add_node("research", research_node)
+    chatbot_graph.add_node("budget", budget_node)
+    chatbot_graph.add_node("itinerary", itinerary_node)
+    chatbot_graph.add_node("all_agents", run_all_agents)
+    chatbot_graph.add_node("synthesizer", synthesizer_node)
+
+    # 2. Entry edge: START -> supervisor
+    chatbot_graph.add_edge(START, "supervisor")
+
+    # 3. Conditional edges: supervisor -> specialist (based on routing)
+    chatbot_graph.add_conditional_edges(
+        "supervisor",
+        route_from_supervisor,
+        {
+            "research": "research",
+            "budget": "budget",
+            "itinerary": "itinerary",
+            "all": "all_agents",
+            "chat": "synthesizer",
+        },
+    )
+
+    # 4. Each specialist -> synthesizer
+    chatbot_graph.add_edge("research", "synthesizer")
+    chatbot_graph.add_edge("budget", "synthesizer")
+    chatbot_graph.add_edge("itinerary", "synthesizer")
+    chatbot_graph.add_edge("all_agents", "synthesizer")
+
+    # 5. synthesizer -> END
+    chatbot_graph.add_edge("synthesizer", END)
+
+    # 6. Compile
+    chatbot_app = chatbot_graph.compile()
+
+The resulting graph looks like this:
+
+    START
+      |
+    supervisor
+      |
+      +---> research ----+
+      +---> budget ------+---> synthesizer ---> END
+      +---> itinerary ---+
+      +---> all_agents --+
+      +---> synthesizer -+
+
+
+--- STEP 6D: Streamlit Chat Interface ---
+
+Build a chat interface using st.chat_input and st.chat_message:
+
+  1. Initialize session state for chat history:
+       if "chatbot_messages" not in st.session_state:
+           st.session_state.chatbot_messages = []
+
+  2. Display existing chat history (loop through messages).
+
+  3. On new user input (st.chat_input):
+     - Append the user message to session state
+     - Build the full message list for the graph
+     - Invoke chatbot_app with {"messages": graph_messages}
+     - Extract the last message from the result as the response
+     - Display and store the assistant response
+
+  4. Try these conversation flows:
+     - "Tell me about Tokyo" (should route to research)
+     - "How much would that cost for 5 days?" (should route to budget)
+     - "Plan me a full trip to Paris" (should route to all agents)
+     - "Thanks!" (should route to chat/general)
+
+
+================================================================================
+  TESTING YOUR APP
+================================================================================
+
+Run your completed app:
+
+    streamlit run streamlit_app.py
+
+Verify the following:
+  [ ] The page loads with the title and description
+  [ ] Sidebar controls work (destination, days, budget, interests)
+  [ ] Clicking "Plan My Trip" produces a comprehensive trip plan
+  [ ] The Agent Activity Log shows all three agents were called
+  [ ] The single-agent comparison produces a noticeably different response
+  [ ] Changing the destination and interests changes the output
+  [ ] The Part 6 chatbot responds conversationally
+  [ ] The chatbot correctly routes to different agents based on the question
+  [ ] The chatbot remembers previous messages in the conversation
 
 
 ================================================================================
   WRITE-UP QUESTIONS
 ================================================================================
 
-Answer the following questions in a separate document. Each response should
-be 3-5 sentences unless otherwise specified.
+Answer the following questions in a separate document. Each response
+should be 3-5 sentences unless otherwise specified. Include screenshots
+where indicated.
 
 
 QUESTION 1: Agent Architecture
@@ -200,6 +469,8 @@ QUESTION 1: Agent Architecture
 Explain the Supervisor (orchestrator/subagent) pattern used in this lab.
 What role does the Supervisor play, and how does it differ from the
 specialist agents? Why is this pattern useful for complex tasks?
+
+  >> Include a screenshot of your supervisor code (create_supervisor call).
 
 
 QUESTION 2: Tool Design
@@ -212,25 +483,32 @@ three tools to a single agent instead?
 QUESTION 3: Agent Coordination
 ------------------------------
 Look at the Agent Activity Log in the sidebar after running a query.
+
   a) In what order did the Supervisor call the agents?
   b) Why does this order make sense for trip planning?
-  c) What would happen if the Itinerary Agent ran BEFORE the Research Agent?
+  c) What would happen if the Itinerary Agent ran BEFORE the
+     Research Agent?
+
+  >> Include a screenshot of your Agent Activity Log.
 
 
 QUESTION 4: Single-Agent vs. Multi-Agent Comparison
 ----------------------------------------------------
 Compare the multi-agent trip plan to the single-agent response.
+
   a) Which response had more specific, actionable information? Why?
-  b) Which response was better organized? What caused that difference?
+  b) Which response was better organized? What caused the difference?
   c) Identify at least TWO concrete examples where the multi-agent
-     response contained tool-backed data that the single-agent lacked.
+     response contained data that the single-agent response lacked.
+
+  >> Include a screenshot showing both responses.
 
 
 QUESTION 5: Trade-offs
 -----------------------
 Multi-agent systems are not always better. Discuss at least THREE
 trade-offs or downsides of using a multi-agent approach compared to
-a single-agent approach. Consider factors like:
+a single-agent approach. Consider:
   - Latency (how long does it take?)
   - Cost (how many API calls are made?)
   - Complexity (how hard is it to debug?)
@@ -241,6 +519,7 @@ QUESTION 6: Real-World Application
 ------------------------------------
 Propose a DIFFERENT real-world scenario (not trip planning) where a
 multi-agent system would be more effective than a single agent.
+
   a) Describe the scenario and the user's goal.
   b) Define at least 3 specialist agents you would create, including
      their names, tools, and responsibilities.
@@ -250,28 +529,48 @@ multi-agent system would be more effective than a single agent.
 QUESTION 7: Coordination Protocols
 ------------------------------------
 The lab uses the Supervisor (orchestrator/subagent) pattern. Two other
-common patterns are:
-  - Peer-to-peer: agents communicate directly with each other
+common multi-agent patterns are:
+
+  - Peer-to-peer: agents communicate directly with each other without
+    a central coordinator
   - Hierarchical: multiple levels of supervisors managing sub-teams
 
 Choose ONE of these alternative patterns and explain:
-  a) How it differs from the Supervisor pattern
+  a) How it differs from the Supervisor pattern used in this lab
   b) A scenario where it would be MORE appropriate than a Supervisor
   c) A scenario where it would be LESS appropriate
+
+
+QUESTION 8: MessagesState & StateGraph
+----------------------------------------
+In Part 6 you built a chatbot using the lower-level StateGraph and
+MessagesState instead of the high-level create_supervisor().
+
+  a) What is MessagesState and what role does it play in the graph?
+  b) Explain the difference between a static edge (add_edge) and a
+     conditional edge (add_conditional_edges). Give an example of each
+     from your code.
+  c) Why does the graph need a "synthesizer" node? What would happen
+     if the specialist agents connected directly to END instead?
+  d) How does create_supervisor() from Parts 1-5 relate to the
+     StateGraph you built manually? What does create_supervisor()
+     do for you that you had to do yourself in Part 6?
+
+  >> Include a screenshot of the chatbot in action (a multi-turn
+     conversation showing routing to different agents).
 
 
 ================================================================================
   SUBMISSION CHECKLIST
 ================================================================================
 
-  [ ] Lab_MA.py — your completed lab file (should run without errors)
+  [ ] Lab_MA.py — runs without errors, includes Parts 1-6
   [ ] Screenshots:
-        - Part 1: App overview with sidebar controls
-        - Part 2: Agent creation code in editor
-        - Part 3: Supervisor wiring code in editor
-        - Part 4: Full trip plan output + Agent Activity Log
-        - Part 5: Multi-agent vs. single-agent comparison
-  [ ] Write-up with answers to all 7 questions
-  [ ] Deployed Streamlit app link (if required by your instructor)
+        - Supervisor code (Question 1)
+        - Agent Activity Log (Question 3)
+        - Multi-agent vs. single-agent comparison (Question 4)
+        - Chatbot conversation (Question 8)
+        - Any additional screenshots you feel support your write-up
+  [ ] Write-up with answers to all 8 questions
 
 ================================================================================
