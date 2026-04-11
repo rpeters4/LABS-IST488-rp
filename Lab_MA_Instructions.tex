@@ -533,79 +533,37 @@ Run your completed app: \texttt{streamlit run streamlit\_app.py}
 % ══════════════════════════════════════════════════════════════════════════════
 \section*{Write-Up Questions}
 
-Answer the following questions in a separate document. Each response should be 3--5 sentences unless otherwise specified. Include screenshots where indicated.
+Answer the following questions in a separate document (submitted via Blackboard or as a text file). Each response should be 3--5 sentences unless otherwise specified.
 
 \bigskip
 
 \noindent\textbf{Question 1: Agent Architecture}\\
 Explain the Supervisor (orchestrator/subagent) pattern used in this lab. What role does the Supervisor play, and how does it differ from the specialist agents? Why is this pattern useful for complex tasks?
 
-\smallskip
-\noindent\textit{$\gg$ Include a screenshot of your supervisor code (\texttt{create\_supervisor} call).}
-
 \bigskip
 
-\noindent\textbf{Question 2: Tool Design}\\
-Each specialist agent has exactly ONE tool. Why is this a good design choice for a multi-agent system? What might go wrong if you gave all three tools to a single agent instead?
-
-\bigskip
-
-\noindent\textbf{Question 3: Agent Coordination}\\
-Look at the Agent Activity Log in the sidebar after running a query.
-\begin{enumerate}[nosep, label=\alph*)]
-  \item In what order did the Supervisor call the agents?
-  \item Why does this order make sense for trip planning?
-  \item What would happen if the Itinerary Agent ran BEFORE the Research Agent?
-\end{enumerate}
-\noindent\textit{$\gg$ Include a screenshot of your Agent Activity Log.}
-
-\bigskip
-
-\noindent\textbf{Question 4: Single-Agent vs.\ Multi-Agent Comparison}\\
+\noindent\textbf{Question 2: Single-Agent vs.\ Multi-Agent Comparison}\\
 Compare the multi-agent trip plan to the single-agent response.
 \begin{enumerate}[nosep, label=\alph*)]
   \item Which response had more specific, actionable information? Why?
   \item Which response was better organized? What caused the difference?
   \item Identify at least TWO concrete examples where the multi-agent response contained data that the single-agent response lacked.
 \end{enumerate}
-\noindent\textit{$\gg$ Include a screenshot showing both responses.}
-
 \bigskip
 
-\noindent\textbf{Question 5: Trade-offs}\\
+\noindent\textbf{Question 3: Trade-offs}\\
 Multi-agent systems are not always better. Discuss at least THREE trade-offs or downsides of using a multi-agent approach compared to a single-agent approach. Consider: latency, cost, complexity, and failure modes.
 
 \bigskip
 
-\noindent\textbf{Question 6: Real-World Application}\\
-Propose a DIFFERENT real-world scenario (not trip planning) where a multi-agent system would be more effective than a single agent.
-\begin{enumerate}[nosep, label=\alph*)]
-  \item Describe the scenario and the user's goal.
-  \item Define at least 3 specialist agents (names, tools, responsibilities).
-  \item Write a 2--3 sentence supervisor prompt that would orchestrate them.
-\end{enumerate}
-
-\bigskip
-
-\noindent\textbf{Question 7: Coordination Protocols}\\
-The lab uses the Supervisor pattern. Two alternatives are \textit{peer-to-peer} (agents communicate directly) and \textit{hierarchical} (multiple levels of supervisors). Choose ONE and explain:
-\begin{enumerate}[nosep, label=\alph*)]
-  \item How it differs from the Supervisor pattern
-  \item A scenario where it would be MORE appropriate
-  \item A scenario where it would be LESS appropriate
-\end{enumerate}
-
-\bigskip
-
-\noindent\textbf{Question 8: MessagesState \& StateGraph}\\
+\noindent\textbf{Question 4: MessagesState \& StateGraph}\\
 In Part 6 you built a chatbot using \texttt{StateGraph} and \texttt{MessagesState}.
 \begin{enumerate}[nosep, label=\alph*)]
   \item What is \texttt{MessagesState} and what role does it play in the graph?
   \item Explain the difference between a static edge (\texttt{add\_edge}) and a conditional edge (\texttt{add\_conditional\_edges}). Give an example of each from your code.
-  \item Why does the graph need a ``synthesizer'' node? What would happen if the specialist agents connected directly to \texttt{END}?
-  \item How does \texttt{create\_supervisor()} relate to the \texttt{StateGraph} you built manually? What does it do for you automatically?
+  \item How does \texttt{create\_supervisor()} from Parts 1--5 relate to the \texttt{StateGraph} you built manually? What does it do for you automatically?
 \end{enumerate}
-\noindent\textit{$\gg$ Include a screenshot of the chatbot in action (a multi-turn conversation).}
+
 
 
 % ══════════════════════════════════════════════════════════════════════════════
@@ -613,15 +571,7 @@ In Part 6 you built a chatbot using \texttt{StateGraph} and \texttt{MessagesStat
 
 \begin{itemize}[nosep]
   \item[$\square$] \texttt{Lab\_MA.py} --- runs without errors, includes Parts 1--6
-  \item[$\square$] Screenshots:
-    \begin{itemize}[nosep]
-      \item Supervisor code (Question 1)
-      \item Agent Activity Log (Question 3)
-      \item Multi-agent vs.\ single-agent comparison (Question 4)
-      \item Chatbot conversation (Question 8)
-      \item Any additional screenshots supporting your write-up
-    \end{itemize}
-  \item[$\square$] Write-up with answers to all 8 questions
+  \item[$\square$] Write-up with answers to all 4 questions
 \end{itemize}
 
 \end{document}
