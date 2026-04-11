@@ -1,0 +1,627 @@
+\documentclass[11pt, letterpaper]{article}
+
+% ── Packages ──
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{hyperref}
+\usepackage{tcolorbox}
+\usepackage{fontenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amssymb}
+
+% ── Colors ──
+\definecolor{codeblue}{RGB}{0, 102, 204}
+\definecolor{codegray}{RGB}{245, 245, 245}
+\definecolor{codeborder}{RGB}{200, 200, 200}
+\definecolor{sectionblue}{RGB}{30, 60, 114}
+\definecolor{tipgreen}{RGB}{34, 139, 34}
+\definecolor{warnred}{RGB}{180, 30, 30}
+
+% ── Code listing style ──
+\lstset{
+  language=Python,
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{codegray},
+  frame=single,
+  rulecolor=\color{codeborder},
+  breaklines=true,
+  breakatwhitespace=true,
+  showstringspaces=false,
+  keywordstyle=\color{codeblue}\bfseries,
+  commentstyle=\color{gray},
+  stringstyle=\color{orange!80!black},
+  tabsize=4,
+  xleftmargin=1em,
+  framexleftmargin=0.5em,
+  aboveskip=1em,
+  belowskip=1em,
+}
+
+% ── Tip / Important boxes ──
+\newtcolorbox{tipbox}{
+  colback=green!5!white,
+  colframe=tipgreen,
+  title={\textbf{TIP}},
+  fonttitle=\bfseries,
+  boxrule=0.5pt,
+  arc=3pt,
+}
+
+\newtcolorbox{importantbox}{
+  colback=red!5!white,
+  colframe=warnred,
+  title={\textbf{IMPORTANT}},
+  fonttitle=\bfseries,
+  boxrule=0.5pt,
+  arc=3pt,
+}
+
+% ── Header / Footer ──
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\textit{IST 488 --- Lab MA}}
+\rhead{\textit{Multi-Agent Systems}}
+\cfoot{\thepage}
+
+% ── Section formatting ──
+\titleformat{\section}
+  {\Large\bfseries\color{sectionblue}}
+  {\thesection}{1em}{}
+\titleformat{\subsection}
+  {\large\bfseries\color{sectionblue!80!black}}
+  {\thesubsection}{1em}{}
+
+% ── Hyperlink style ──
+\hypersetup{
+  colorlinks=true,
+  linkcolor=codeblue,
+  urlcolor=codeblue,
+}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\begin{document}
+
+% ── Title Block ──
+\begin{center}
+  {\Huge\bfseries Lab MA: Multi-Agent Systems}\\[0.4em]
+  {\Large\bfseries with LangChain \& LangGraph}\\[1.2em]
+  {\large IST 488 --- Building Human-Centered AI Applications}\\[0.5em]
+  {\large Time: $\sim$40 minutes}
+\end{center}
+
+\vspace{1em}
+\hrule
+\vspace{1.5em}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section*{Overview}
+
+In this lab, you will build a \textbf{Multi-Agent Trip Planner} as a Streamlit app. A \textbf{Supervisor} agent will orchestrate three specialist agents --- \textit{Research}, \textit{Budget}, and \textit{Itinerary} --- to collaboratively plan a trip. No single agent can produce a complete plan; they must coordinate through the Supervisor.
+
+\medskip
+\noindent By the end of this lab you will:
+\begin{itemize}[nosep]
+  \item Define custom tools using LangChain's \texttt{@tool} decorator
+  \item Create specialist agents with \texttt{create\_react\_agent()}
+  \item Wire them together under a Supervisor using \texttt{create\_supervisor()}
+  \item Build a Streamlit UI to interact with the multi-agent system
+  \item Compare multi-agent output against a single-agent baseline
+  \item Build a chatbot using \texttt{MessagesState} and \texttt{StateGraph}
+\end{itemize}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section*{Setup}
+
+\begin{enumerate}[nosep]
+  \item Install the required packages:
+  \begin{lstlisting}[language=bash]
+pip install streamlit langchain langchain-openai langgraph langgraph-supervisor
+  \end{lstlisting}
+
+  \item Make sure your OpenAI API key is configured in \texttt{.streamlit/secrets.toml}:
+  \begin{lstlisting}[language=bash]
+OPENAI_API_KEY = "sk-..."
+  \end{lstlisting}
+
+  \item You are provided a file called \texttt{travel\_data.json} which contains all the destination information, cost data, and activity pools. Place this file in your \texttt{LABS-IST488} directory.
+
+  \item Create a new file called \texttt{Lab\_MA.py} in your \texttt{LABS-IST488} directory.
+
+  \item Add \texttt{Lab\_MA.py} to your \texttt{streamlit\_app.py} navigation so you can access it.
+\end{enumerate}
+
+\newpage
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Part 1: Setup \& Environment \textnormal{(\textasciitilde5 minutes)}}
+
+At the top of your \texttt{Lab\_MA.py} file, add the following imports:
+
+\begin{lstlisting}
+import os
+import json
+import streamlit as st
+from langchain_openai import ChatOpenAI
+from langchain_core.tools import tool
+from langgraph.prebuilt import create_react_agent
+from langgraph_supervisor import create_supervisor
+\end{lstlisting}
+
+\noindent Then set up the page:
+\begin{itemize}[nosep]
+  \item Add a title: ``Lab MA: Multi-Agent Trip Planner''
+  \item Add a brief description explaining how the system works (a Supervisor coordinates three specialist agents: Research, Budget, Itinerary)
+  \item Load the OpenAI API key from \texttt{st.secrets} (same pattern as earlier labs)
+  \item Create \textbf{two} \texttt{ChatOpenAI} instances:
+\end{itemize}
+
+\begin{lstlisting}
+agent_llm      = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+supervisor_llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+\end{lstlisting}
+
+When complete, run \texttt{streamlit run streamlit\_app.py} and verify your page loads with the title and description.
+
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Part 2: Building Specialist Agents \textnormal{(\textasciitilde10 minutes)}}
+
+In this section you will define three tools and three agents.
+
+\subsection*{Step 2A: Load the Travel Data}
+
+Load the \texttt{travel\_data.json} file at the top of your tools section:
+
+\begin{lstlisting}
+with open("travel_data.json", "r") as f:
+    TRAVEL_DATA = json.load(f)
+\end{lstlisting}
+
+\noindent The JSON file has this structure:
+\begin{itemize}[nosep]
+  \item \texttt{destinations}: dict of city names $\rightarrow$ \{highlights, best\_time, culture, tips, weather\}
+  \item \texttt{flight\_estimates}: dict of city names $\rightarrow$ estimated roundtrip flight cost (USD)
+  \item \texttt{daily\_costs}: dict of budget levels $\rightarrow$ \{accommodation, food, transport, activities, misc\}
+  \item \texttt{activities}: dict of interest categories $\rightarrow$ list of activity strings
+  \item \texttt{money\_saving\_tips}: list of tip strings
+\end{itemize}
+
+\subsection*{Step 2B: Define the Tools}
+
+Each tool is a Python function decorated with \texttt{@tool}. The decorator automatically registers the function's name, docstring, and parameter types so that an LLM agent can call it:
+
+\begin{lstlisting}
+@tool
+def my_tool_name(param1: str, param2: int) -> str:
+    """Description of what this tool does. The LLM reads this."""
+    # ... your logic ...
+    return json.dumps(result)
+\end{lstlisting}
+
+\noindent Create \textbf{three} tools that pull data from \texttt{TRAVEL\_DATA}:
+
+\begin{enumerate}
+  \item \texttt{search\_destination(query: str) -> str}\\
+    \textit{Purpose:} Look up travel info about a destination.\\
+    \textit{Implementation:} Read \texttt{TRAVEL\_DATA["destinations"]}. Match the user's query against city names (case-insensitive). Return the matching city's data as a JSON string. If no city matches, return generic fallback info.
+
+  \item \texttt{calculate\_budget(destination: str, days: int, budget\_level: str) -> str}\\
+    \textit{Purpose:} Estimate trip costs.\\
+    \textit{Implementation:} Read \texttt{TRAVEL\_DATA["daily\_costs"]} and \texttt{TRAVEL\_DATA["flight\_estimates"]}. Look up the daily rate for the given budget level, calculate totals based on the number of days, add the flight cost. Include \texttt{TRAVEL\_DATA["money\_saving\_tips"]}. Return as JSON.
+
+  \item \texttt{create\_schedule(destination: str, days: int, interests: str) -> str}\\
+    \textit{Purpose:} Build a day-by-day itinerary.\\
+    \textit{Implementation:} Read \texttt{TRAVEL\_DATA["activities"]}. Parse the interests string, collect matching activities from the pool, and build a schedule with morning/afternoon/evening slots for each day. Return as JSON.
+\end{enumerate}
+
+\begin{tipbox}
+These tools return \textbf{simulated data} from the JSON file --- you are not calling real APIs. This keeps the lab self-contained and predictable. The LLM still reasons about the data and composes a natural-language response.
+\end{tipbox}
+
+\subsection*{Step 2C: Create the Agents}
+
+Use \texttt{create\_react\_agent()} to create three specialist agents:
+
+\begin{lstlisting}
+agent = create_react_agent(
+    model=agent_llm,
+    tools=[your_tool],
+    name="agent_name",
+    prompt="You are a specialist in ... Always use the tool ..."
+)
+\end{lstlisting}
+
+\noindent Create these three agents:
+
+\begin{enumerate}
+  \item \textbf{research\_agent} --- Tools: \texttt{[search\_destination]}\\
+    Prompt: Tell it to be a travel research specialist that always uses the \texttt{search\_destination} tool.
+
+  \item \textbf{budget\_agent} --- Tools: \texttt{[calculate\_budget]}\\
+    Prompt: Tell it to be a budget specialist that always uses the \texttt{calculate\_budget} tool.
+
+  \item \textbf{itinerary\_agent} --- Tools: \texttt{[create\_schedule]}\\
+    Prompt: Tell it to be an itinerary specialist that always uses the \texttt{create\_schedule} tool.
+\end{enumerate}
+
+\begin{importantbox}
+In each agent's prompt, instruct it to \textbf{ALWAYS} call its tool and not make up information. This ensures the agent uses the tool rather than relying on its own knowledge.
+\end{importantbox}
+
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Part 3: Creating the Supervisor \textnormal{(\textasciitilde8 minutes)}}
+
+The Supervisor is the central orchestrator. It receives the user's request, decides which agent(s) to delegate to, and synthesizes the final response.
+
+\begin{lstlisting}
+workflow = create_supervisor(
+    agents=[research_agent, budget_agent, itinerary_agent],
+    model=supervisor_llm,
+    prompt="..."
+)
+\end{lstlisting}
+
+\noindent Write a supervisor prompt that:
+\begin{itemize}[nosep]
+  \item Lists the three available agents and what each one does
+  \item Instructs the supervisor to route questions:
+    \begin{itemize}[nosep]
+      \item Destination questions $\rightarrow$ \texttt{research\_agent}
+      \item Cost/budget questions $\rightarrow$ \texttt{budget\_agent}
+      \item Schedule/itinerary questions $\rightarrow$ \texttt{itinerary\_agent}
+      \item Full trip planning $\rightarrow$ \textbf{ALL} three agents
+    \end{itemize}
+  \item Tells the supervisor to synthesize all responses into one organized plan
+\end{itemize}
+
+\noindent Then compile and invoke:
+
+\begin{lstlisting}
+multi_agent_app = workflow.compile()
+
+result = multi_agent_app.invoke({
+    "messages": [{"role": "user", "content": "your query here"}]
+})
+
+# The final response:
+result["messages"][-1].content
+\end{lstlisting}
+
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Part 4: Streamlit Interface \textnormal{(\textasciitilde10 minutes)}}
+
+Build the user interface to interact with your multi-agent system.
+
+\subsection*{Step 4A: Sidebar Controls}
+
+In a \texttt{with st.sidebar:} block, create:
+\begin{itemize}[nosep]
+  \item A \texttt{text\_input} for the destination (default: ``Paris'')
+  \item A \texttt{slider} for trip duration (1--14 days, default: 5)
+  \item A \texttt{selectbox} for budget level (Budget / Moderate / Luxury)
+  \item A \texttt{multiselect} for interests (Food, History, Art, Nature, etc.)
+\end{itemize}
+
+\subsection*{Step 4B: Session State}
+
+Initialize session state variables to persist results across reruns:
+
+\begin{lstlisting}
+if "ma_result" not in st.session_state:
+    st.session_state.ma_result = None
+if "ma_messages" not in st.session_state:
+    st.session_state.ma_messages = None
+\end{lstlisting}
+
+\subsection*{Step 4C: Query Construction \& Invocation}
+
+Build a query string from the sidebar inputs, e.g.:
+
+\begin{quote}
+\textit{``Plan a 5-day trip to Paris. My budget level is moderate. My interests include: Food, History. Please provide destination research, a budget breakdown, and a day-by-day itinerary.''}
+\end{quote}
+
+\noindent Create a ``Plan My Trip'' button. When clicked: show a spinner, invoke \texttt{multi\_agent\_app}, store the result in session state, and display it with \texttt{st.markdown()}.
+
+\subsection*{Step 4D: Agent Activity Log}
+
+After displaying results, add a debug section in the sidebar showing which agents were called and in what order:
+
+\begin{lstlisting}
+for msg in result["messages"]:
+    msg_name = getattr(msg, "name", None)       # agent name
+    tool_calls = getattr(msg, "tool_calls", None) # tool invocations
+\end{lstlisting}
+
+\noindent Display the execution order with emoji labels (e.g., research\_agent, budget\_agent, itinerary\_agent).
+
+\newpage
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Part 5: Single-Agent Comparison \textnormal{(\textasciitilde7 minutes)}}
+
+Add a section below the trip plan that compares multi-agent output with a single-agent response.
+
+\begin{enumerate}[nosep]
+  \item Add a divider and subheader: ``Experiment: Single Agent vs Multi-Agent''
+  \item Add a button ``Run Single-Agent Comparison''. When clicked, send the \textbf{exact same query} to a single LLM with no tools:
+\end{enumerate}
+
+\begin{lstlisting}
+single_llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+single_result = single_llm.invoke(trip_query)
+st.markdown(single_result.content)
+\end{lstlisting}
+
+\begin{enumerate}[nosep, start=3]
+  \item Add reflection questions for students to consider (display them in the app using \texttt{st.markdown}).
+\end{enumerate}
+
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Part 6: Chatbot Mode --- \texttt{MessagesState} \& \texttt{StateGraph} \textnormal{(\textasciitilde10 min bonus)}}
+
+In Parts 1--5 you used \texttt{create\_supervisor()}, a \textbf{high-level} helper. Now you will build a conversational chatbot using the \textbf{lower-level} LangGraph primitives.
+
+\subsection*{Key Concepts}
+
+\begin{description}[style=nextline, leftmargin=2em]
+  \item[\texttt{MessagesState}]
+    A \texttt{TypedDict} that holds a list of messages as the graph's shared state. Every node reads from and writes to this state. Think of it as the ``conversation memory'' flowing through the graph.
+
+    \begin{lstlisting}
+from langgraph.graph import MessagesState
+# Equivalent to:
+# class MessagesState(TypedDict):
+#     messages: list[BaseMessage]
+    \end{lstlisting}
+
+  \item[\texttt{StateGraph}]
+    The core graph builder. You define \textbf{nodes} (processing functions) and \textbf{edges} (connections), then compile into a runnable app.
+
+    \begin{lstlisting}
+from langgraph.graph import StateGraph, START, END
+    \end{lstlisting}
+
+  \item[Nodes]
+    Python functions that take the current state and return updated messages:
+
+    \begin{lstlisting}
+def my_node(state: MessagesState):
+    messages = state["messages"]     # read
+    # ... process ...
+    return {"messages": [response]}  # write
+    \end{lstlisting}
+
+  \item[Edges]
+    Three types of connections:
+    \begin{itemize}[nosep]
+      \item \textbf{Static:} \texttt{graph.add\_edge("node\_a", "node\_b")}
+      \item \textbf{Conditional:} \texttt{graph.add\_conditional\_edges("node\_a", router\_fn, mapping)}
+      \item \textbf{START/END:} \texttt{graph.add\_edge(START, "first\_node")}
+    \end{itemize}
+\end{description}
+
+\subsection*{Step 6A: Define Graph Nodes}
+
+Create these node functions:
+
+\begin{enumerate}[nosep]
+  \item \textbf{supervisor\_node} --- reads messages, uses the LLM with a routing prompt to output one word: ``research'', ``budget'', ``itinerary'', ``all'', or ``chat''
+  \item \textbf{research\_node} --- invokes the \texttt{research\_agent} from Part 2
+  \item \textbf{budget\_node} --- invokes the \texttt{budget\_agent}
+  \item \textbf{itinerary\_node} --- invokes the \texttt{itinerary\_agent}
+  \item \textbf{run\_all\_agents} --- sequentially invokes all three agents, combines outputs
+  \item \textbf{synthesizer\_node} --- produces a final, well-organized response from all agent outputs
+\end{enumerate}
+
+\subsection*{Step 6B: Define the Router}
+
+\begin{lstlisting}
+def route_from_supervisor(state: MessagesState):
+    last_msg = state["messages"][-1].content.strip().lower()
+    if "research" in last_msg:
+        return "research"
+    elif "budget" in last_msg:
+        return "budget"
+    elif "itinerary" in last_msg:
+        return "itinerary"
+    elif "all" in last_msg:
+        return "all"
+    else:
+        return "chat"
+\end{lstlisting}
+
+\subsection*{Step 6C: Build the StateGraph}
+
+\begin{lstlisting}
+chatbot_graph = StateGraph(MessagesState)
+
+# Add nodes
+chatbot_graph.add_node("supervisor", supervisor_node)
+chatbot_graph.add_node("research", research_node)
+chatbot_graph.add_node("budget", budget_node)
+chatbot_graph.add_node("itinerary", itinerary_node)
+chatbot_graph.add_node("all_agents", run_all_agents)
+chatbot_graph.add_node("synthesizer", synthesizer_node)
+
+# Edges
+chatbot_graph.add_edge(START, "supervisor")
+
+chatbot_graph.add_conditional_edges(
+    "supervisor",
+    route_from_supervisor,
+    {
+        "research": "research",
+        "budget": "budget",
+        "itinerary": "itinerary",
+        "all": "all_agents",
+        "chat": "synthesizer",
+    },
+)
+
+chatbot_graph.add_edge("research", "synthesizer")
+chatbot_graph.add_edge("budget", "synthesizer")
+chatbot_graph.add_edge("itinerary", "synthesizer")
+chatbot_graph.add_edge("all_agents", "synthesizer")
+chatbot_graph.add_edge("synthesizer", END)
+
+chatbot_app = chatbot_graph.compile()
+\end{lstlisting}
+
+\noindent The resulting graph:
+
+\begin{verbatim}
+    START
+      |
+    supervisor
+      |
+      +---> research ----+
+      +---> budget ------+---> synthesizer ---> END
+      +---> itinerary ---+
+      +---> all_agents --+
+      +---> synthesizer -+
+\end{verbatim}
+
+\subsection*{Step 6D: Streamlit Chat Interface}
+
+Build a chat interface using \texttt{st.chat\_input} and \texttt{st.chat\_message}:
+
+\begin{enumerate}[nosep]
+  \item Initialize session state for chat history
+  \item Display existing chat history (loop through messages)
+  \item On new user input: append to state, invoke \texttt{chatbot\_app}, extract and display response
+  \item Try these flows:
+    \begin{itemize}[nosep]
+      \item ``Tell me about Tokyo'' (routes to research)
+      \item ``How much would that cost for 5 days?'' (routes to budget)
+      \item ``Plan me a full trip to Paris'' (routes to all agents)
+      \item ``Thanks!'' (routes to chat/general)
+    \end{itemize}
+\end{enumerate}
+
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section*{Testing Your App}
+
+Run your completed app: \texttt{streamlit run streamlit\_app.py}
+
+\medskip
+\noindent Verify the following:
+\begin{itemize}[nosep]
+  \item[$\square$] The page loads with the title and description
+  \item[$\square$] Sidebar controls work (destination, days, budget, interests)
+  \item[$\square$] Clicking ``Plan My Trip'' produces a comprehensive trip plan
+  \item[$\square$] The Agent Activity Log shows all three agents were called
+  \item[$\square$] The single-agent comparison produces a noticeably different response
+  \item[$\square$] Changing the destination and interests changes the output
+  \item[$\square$] The Part 6 chatbot responds conversationally
+  \item[$\square$] The chatbot correctly routes to different agents based on the question
+  \item[$\square$] The chatbot remembers previous messages in the conversation
+\end{itemize}
+
+\newpage
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section*{Write-Up Questions}
+
+Answer the following questions in a separate document. Each response should be 3--5 sentences unless otherwise specified. Include screenshots where indicated.
+
+\bigskip
+
+\noindent\textbf{Question 1: Agent Architecture}\\
+Explain the Supervisor (orchestrator/subagent) pattern used in this lab. What role does the Supervisor play, and how does it differ from the specialist agents? Why is this pattern useful for complex tasks?
+
+\smallskip
+\noindent\textit{$\gg$ Include a screenshot of your supervisor code (\texttt{create\_supervisor} call).}
+
+\bigskip
+
+\noindent\textbf{Question 2: Tool Design}\\
+Each specialist agent has exactly ONE tool. Why is this a good design choice for a multi-agent system? What might go wrong if you gave all three tools to a single agent instead?
+
+\bigskip
+
+\noindent\textbf{Question 3: Agent Coordination}\\
+Look at the Agent Activity Log in the sidebar after running a query.
+\begin{enumerate}[nosep, label=\alph*)]
+  \item In what order did the Supervisor call the agents?
+  \item Why does this order make sense for trip planning?
+  \item What would happen if the Itinerary Agent ran BEFORE the Research Agent?
+\end{enumerate}
+\noindent\textit{$\gg$ Include a screenshot of your Agent Activity Log.}
+
+\bigskip
+
+\noindent\textbf{Question 4: Single-Agent vs.\ Multi-Agent Comparison}\\
+Compare the multi-agent trip plan to the single-agent response.
+\begin{enumerate}[nosep, label=\alph*)]
+  \item Which response had more specific, actionable information? Why?
+  \item Which response was better organized? What caused the difference?
+  \item Identify at least TWO concrete examples where the multi-agent response contained data that the single-agent response lacked.
+\end{enumerate}
+\noindent\textit{$\gg$ Include a screenshot showing both responses.}
+
+\bigskip
+
+\noindent\textbf{Question 5: Trade-offs}\\
+Multi-agent systems are not always better. Discuss at least THREE trade-offs or downsides of using a multi-agent approach compared to a single-agent approach. Consider: latency, cost, complexity, and failure modes.
+
+\bigskip
+
+\noindent\textbf{Question 6: Real-World Application}\\
+Propose a DIFFERENT real-world scenario (not trip planning) where a multi-agent system would be more effective than a single agent.
+\begin{enumerate}[nosep, label=\alph*)]
+  \item Describe the scenario and the user's goal.
+  \item Define at least 3 specialist agents (names, tools, responsibilities).
+  \item Write a 2--3 sentence supervisor prompt that would orchestrate them.
+\end{enumerate}
+
+\bigskip
+
+\noindent\textbf{Question 7: Coordination Protocols}\\
+The lab uses the Supervisor pattern. Two alternatives are \textit{peer-to-peer} (agents communicate directly) and \textit{hierarchical} (multiple levels of supervisors). Choose ONE and explain:
+\begin{enumerate}[nosep, label=\alph*)]
+  \item How it differs from the Supervisor pattern
+  \item A scenario where it would be MORE appropriate
+  \item A scenario where it would be LESS appropriate
+\end{enumerate}
+
+\bigskip
+
+\noindent\textbf{Question 8: MessagesState \& StateGraph}\\
+In Part 6 you built a chatbot using \texttt{StateGraph} and \texttt{MessagesState}.
+\begin{enumerate}[nosep, label=\alph*)]
+  \item What is \texttt{MessagesState} and what role does it play in the graph?
+  \item Explain the difference between a static edge (\texttt{add\_edge}) and a conditional edge (\texttt{add\_conditional\_edges}). Give an example of each from your code.
+  \item Why does the graph need a ``synthesizer'' node? What would happen if the specialist agents connected directly to \texttt{END}?
+  \item How does \texttt{create\_supervisor()} relate to the \texttt{StateGraph} you built manually? What does it do for you automatically?
+\end{enumerate}
+\noindent\textit{$\gg$ Include a screenshot of the chatbot in action (a multi-turn conversation).}
+
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section*{Submission Checklist}
+
+\begin{itemize}[nosep]
+  \item[$\square$] \texttt{Lab\_MA.py} --- runs without errors, includes Parts 1--6
+  \item[$\square$] Screenshots:
+    \begin{itemize}[nosep]
+      \item Supervisor code (Question 1)
+      \item Agent Activity Log (Question 3)
+      \item Multi-agent vs.\ single-agent comparison (Question 4)
+      \item Chatbot conversation (Question 8)
+      \item Any additional screenshots supporting your write-up
+    \end{itemize}
+  \item[$\square$] Write-up with answers to all 8 questions
+\end{itemize}
+
+\end{document}

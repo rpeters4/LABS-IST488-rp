@@ -1,0 +1,168 @@
+================================================================================
+  LAB MA — LEARNING OUTCOMES & PACKAGE REFERENCE
+  What Students Will Learn
+================================================================================
+
+
+PACKAGES & IMPORTS
+==================
+
+Student learns about:
+
+  from langchain_openai import ChatOpenAI
+    - Initializing an LLM client through LangChain's unified interface
+    - Configuring model parameters (model name, temperature)
+    - Using the same interface for both agent and supervisor LLMs
+
+  from langchain_core.tools import tool
+    - The @tool decorator for turning Python functions into agent-callable tools
+    - How the decorator auto-registers function name, docstring, and parameter
+      types so an LLM can discover and invoke the tool
+    - Designing tool signatures with type hints (str, int)
+
+  from langgraph.prebuilt import create_react_agent
+    - Creating a ReAct (Reasoning + Acting) agent that loops between
+      thinking and tool execution
+    - Binding a model, tools, name, and prompt into a single agent node
+    - Understanding the agent loop: reason → call tool → observe → reason
+
+  from langgraph_supervisor import create_supervisor
+    - The high-level Supervisor (orchestrator/subagent) pattern
+    - Wiring multiple agents under a central coordinator
+    - Writing a supervisor prompt that defines routing logic
+    - Compiling a workflow into a runnable graph with .compile()
+
+  from langgraph.graph import StateGraph, MessagesState, START, END
+    - StateGraph: the core graph builder for defining nodes and edges
+    - MessagesState: a TypedDict holding a list of messages as shared state
+    - START / END: special constants for graph entry and exit points
+    - Building a graph manually vs. using high-level helpers
+
+  import json
+    - Loading external data files (travel_data.json)
+    - Serializing tool outputs as JSON strings for agent consumption
+    - Structuring tool return values for LLM readability
+
+  import streamlit as st
+    - Building interactive web UIs for AI applications
+    - Session state management (st.session_state)
+    - Chat interface (st.chat_input, st.chat_message)
+    - Sidebar controls (st.sidebar, st.text_input, st.slider, st.selectbox,
+      st.multiselect)
+    - Feedback elements (st.spinner, st.error, st.expander)
+
+
+CONCEPTS & SKILLS
+=================
+
+Student learns about:
+
+  Multi-Agent Systems (MAS)
+    - What an intelligent agent is (perceives environment, takes actions)
+    - Why multiple specialized agents outperform a single generalist
+    - Task decomposition: breaking a problem into sub-tasks for different agents
+    - Agent coordination and message passing
+
+  Supervisor / Orchestrator Pattern
+    - A central supervisor LLM routes tasks to specialist agents
+    - The supervisor decides WHICH agent to call and in WHAT ORDER
+    - After specialists finish, the supervisor synthesizes a final response
+    - This is the most common production multi-agent architecture
+
+  Tool Design for Agents
+    - Creating tools with clear docstrings (the LLM reads these to decide
+      when to call the tool)
+    - Returning structured JSON from tools so the LLM can reason about data
+    - One tool per agent vs. multiple tools per agent (design trade-offs)
+    - Using simulated/mock data for predictable development and testing
+
+  StateGraph & Graph-Based Workflows
+    - Representing an AI workflow as a directed graph
+    - Nodes = processing functions (agents, synthesizers, routers)
+    - Edges = connections between nodes (static and conditional)
+    - Conditional routing: using a router function to dynamically decide
+      the next node based on the current state
+    - Compiling a graph blueprint into a runnable application
+
+  MessagesState & Conversational Memory
+    - Shared state as a list of messages flowing through the graph
+    - Each node reads from and appends to the message list
+    - Full conversation history enables multi-turn interactions
+    - How state management differs from simple API calls
+
+  Single-Agent vs. Multi-Agent Comparison
+    - Empirically comparing output quality between approaches
+    - Identifying where tool-backed data improves over pure LLM knowledge
+    - Understanding trade-offs: latency, cost, complexity, failure modes
+    - When multi-agent is worth the overhead vs. when it's overkill
+
+  Prompt Engineering for Agents
+    - Writing system prompts that constrain agent behavior
+    - Instructing agents to ALWAYS use their tools (not hallucinate data)
+    - Writing supervisor prompts with explicit routing rules
+    - Writing routing prompts that produce structured, parseable output
+
+
+API PATTERNS PRACTICED
+======================
+
+Student practices:
+
+  ChatOpenAI.invoke(messages)
+    - Sending a list of messages to an LLM and getting a response
+    - Using system + user message patterns
+
+  create_react_agent(model, tools, name, prompt)
+    - Creating agents with the ReAct pattern
+    - Binding tools to specific agents
+
+  create_supervisor(agents, model, prompt)
+    - Wiring agents into a supervisor workflow
+    - Defining routing logic via natural language prompts
+
+  workflow.compile()
+    - Converting a graph definition into a runnable application
+
+  app.invoke({"messages": [...]})
+    - Running a multi-agent graph with a user query
+    - Extracting the final response from result["messages"][-1].content
+
+  StateGraph.add_node(name, function)
+    - Registering processing functions as graph nodes
+
+  StateGraph.add_edge(source, target)
+    - Connecting nodes with static edges
+
+  StateGraph.add_conditional_edges(source, router_fn, mapping)
+    - Connecting nodes with dynamic routing based on state
+
+  @tool decorator
+    - Converting a Python function into an agent-callable tool
+    - Auto-generating tool schemas from type hints and docstrings
+
+  st.chat_input / st.chat_message
+    - Building conversational chat interfaces in Streamlit
+
+  st.session_state
+    - Persisting data across Streamlit reruns
+
+  json.load / json.dumps
+    - Loading external data files
+    - Serializing structured data for tool returns
+
+
+REAL-WORLD CONNECTIONS
+======================
+
+After completing this lab, students can:
+
+  - Design multi-agent systems for any domain (customer service, content
+    creation, code review, research, etc.)
+  - Choose between Supervisor, Peer-to-Peer, and Hierarchical coordination
+    patterns based on the use case
+  - Build production-grade agent workflows using LangGraph
+  - Evaluate when multi-agent architectures are worth the added complexity
+  - Create tools that connect agents to external data sources and APIs
+  - Build conversational AI applications with Streamlit
+
+================================================================================
