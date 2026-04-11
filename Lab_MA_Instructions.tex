@@ -362,35 +362,8 @@ st.markdown(single_result.content)
 \end{lstlisting}
 
 \begin{enumerate}[nosep, start=3]
-  \item After displaying the single-agent result, add a divider and display the following reflection questions in your app using \texttt{st.markdown}:
+  \item Compare the two responses side-by-side. Note the differences in data quality, structure, and specificity. You will reflect on these observations in the Write-Up Questions at the end of this document.
 \end{enumerate}
-
-\begin{lstlisting}
-st.divider()
-st.markdown(
-    """
-    ### Reflection Questions
-    Compare the two responses above and consider:
-
-    1. **Data Quality**: Which response has more specific,
-       actionable information?
-       (Hint: the multi-agent system had access to tools
-       with real data)
-
-    2. **Structure**: Which response is better organized? Why?
-       (Hint: each specialist agent focused on one aspect
-       of the plan)
-
-    3. **Coordination**: How did the Supervisor decide which
-       agents to call?
-       (Check the Agent Activity Log in the sidebar)
-
-    4. **Trade-offs**: What are the downsides of a multi-agent
-       approach?
-       (Think about: latency, cost, complexity, failure modes)
-    """
-)
-\end{lstlisting}
 
 
 % ══════════════════════════════════════════════════════════════════════════════
