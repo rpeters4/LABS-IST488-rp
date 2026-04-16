@@ -1,0 +1,49 @@
+Lab 9 — Write-Up & Reflection Questions
+=========================================
+
+Part D: Testing Scenarios
+--------------------------
+
+1. Tell the chatbot about yourself: "My name is Ryan and I'm studying at Syracuse University"
+   - After sending this message, the sidebar updates with new memories such as
+     "User's name is Ryan" and "User studies at Syracuse University." The memory
+     extraction call (gpt-4.1-nano) identifies these as new facts, appends them to
+     memories.json, and the page reruns to reflect the changes in the sidebar.
+
+2. Clear the chat history (refresh the page), then ask: "What's my name?"
+   - Even after a page refresh (which wipes st.session_state.lab9_messages), the
+     chatbot still knows the user's name. This is because the long-term memories
+     stored in memories.json are reloaded and injected into the system prompt on
+     every request. The conversation history is gone, but the persistent memory
+     file survives the refresh.
+
+3. Add more facts over multiple messages (favorite food, major, hobbies, etc.)
+   - Each new fact is extracted by the secondary LLM call and appended to the
+     sidebar. For example, telling the bot "I love sushi and I'm majoring in
+     Information Science" adds those facts. The extraction prompt includes
+     existing memories to avoid duplicates, so repeated facts are not stored
+     again.
+
+4. Try switching LLM providers (OpenAI ↔ Anthropic)
+   - Memories persist even when switching models because the memory system is
+     completely independent of the LLM provider. The memories are stored in a
+     local JSON file (memories.json) on disk, not inside any model or API.
+     Whichever model is active simply receives those memories as part of the
+     system prompt. The model itself has no persistent state — it is the
+     application layer that provides continuity.
+
+
+Reflection Questions
+---------------------
+
+1. What is the difference between short-term memory (chat history in
+   st.session_state) and long-term memory (the JSON file) in your chatbot?
+   What happens if you clear one but not the other?
+
+   Short-term memory is the conversation history kept in st.session_state.lab9_messages. It only lasts for the current browser session and gets wiped when you refresh the page or close the tab. Its purpose is to give the LLM context about the current conversation so it can follow along with multi-turn dialogue. Long-term memory, on the other hand, is the list of user facts saved in the memories.json file on disk. Because it lives outside the app's runtime state, it survives page refreshes, browser restarts, and even switching between different LLM providers. These facts get injected into the system prompt every time a new request is made. If you clear short-term memory by refreshing the page but leave long-term memory intact, the chatbot loses track of what was said in the current conversation but still knows persistent facts like your name or major. If you clear long-term memory using the sidebar button but keep the short-term history, the bot can still reference things from the current session, but all knowledge from prior sessions is gone and will not come back after the next refresh.
+
+2. What are some privacy or ethical concerns with a chatbot that remembers
+   personal information about users? How might you address these in a
+   real-world application?
+
+   There are several privacy and ethical issues that come up when a chatbot stores personal information. First, the data is sitting in a plain-text JSON file, which means anyone with access to the server could read it. In a real application you would want to encrypt that data at rest and restrict access with proper authentication. Second, the bot extracts and saves facts automatically without ever asking the user for permission, so users might not even realize their information is being recorded. A production system should be transparent about what it collects and give users the ability to opt out, in line with regulations like GDPR or CCPA. There is also the problem of inaccurate or outdated memories, since the LLM might extract something wrong or the user's situation might change over time, and stale facts could lead to awkward or incorrect responses. Users should be able to view, edit, and delete individual memories rather than only having the option to wipe everything at once. On top of that, the current implementation uses a single global memory file, so if multiple people use the same deployment their data could leak to each other. A real-world version would need per-user storage with proper authentication to keep everyone's memories isolated. Finally, a chatbot that remembers too much can feel intrusive, so it makes sense to set boundaries on what categories of information are eligible for storage and to implement automatic expiration for old memories.
